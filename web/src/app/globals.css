@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+/* ============================================================
+   BRAND TOKENS — Juare Tires
+   ============================================================ */
+:root {
+  /* Paleta principal */
+  --color-primary:   #e63946;   /* rojo llantera */
+  --color-secondary: #f1faee;   /* crema claro */
+  --color-bg:        #0a0a0a;   /* fondo oscuro */
+  --color-surface:   #1e1e1e;   /* cards / panels */
+  --color-surface2:  #141414;   /* surface secundario */
+  --color-text:      #f1faee;   /* texto principal */
+  --color-green:     #25d366;   /* WhatsApp — no cambiar */
+
+  --background: var(--color-bg);
+  --foreground: var(--color-text);
+}
+
+@theme inline {
+  --color-background:   var(--background);
+  --color-foreground:   var(--foreground);
+  --color-brand-primary:   var(--color-primary);
+  --color-brand-secondary: var(--color-secondary);
+  --color-brand-bg:        var(--color-bg);
+  --color-brand-surface:   var(--color-surface);
+  --color-brand-surface2:  var(--color-surface2);
+  --color-brand-text:      var(--color-text);
+  --color-brand-green:     var(--color-green);
+  --font-heading: var(--font-heading);
+  --font-sans:    var(--font-body);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body), Arial, Helvetica, sans-serif;
+}
+
+h1, h2, h3, h4, .font-heading {
+  font-family: var(--font-heading), sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}

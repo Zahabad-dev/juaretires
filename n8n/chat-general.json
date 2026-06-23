@@ -1,0 +1,366 @@
+{
+  "name": "CHAT GENERAL — Juare Tires",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "juare-tires-wa",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [52384, 20112],
+      "id": "wh-wa-001",
+      "name": "Webhook WhatsApp",
+      "webhookId": "juare-tires-wa-001"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "juare-tires-messenger",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [52384, 20272],
+      "id": "wh-ms-001",
+      "name": "Webhook Messenger",
+      "webhookId": "juare-tires-messenger-001"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "juare-tires-webchat",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [52384, 20432],
+      "id": "wh-wc-001",
+      "name": "Webhook Webchat",
+      "webhookId": "juare-tires-webchat-001"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "juare-tires-form",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [52384, 20592],
+      "id": "wh-fm-001",
+      "name": "Webhook Formulario",
+      "webhookId": "juare-tires-form-001"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+          "conditions": [
+            {
+              "id": "cond-wl-001",
+              "leftValue": "={{ $json.enWhitelistYCloud }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "true" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [53072, 20336],
+      "id": "if-wl-001",
+      "name": "IF Whitelist YCloud?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// NORMALIZADOR UNIVERSAL DE CANALES\n// Unifica el formato sin importar el canal de entrada\nconst body = $json.body || $json;\nconst headers = $json.headers || {};\n\nlet canal = 'desconocido';\nlet telefono = '';\nlet nombre = 'Visitante';\nlet mensaje = '';\nlet idMensaje = '';\nlet tipoMensaje = 'text';\nlet audioId = '';\nlet imageCaption = '';\nlet numeroNegocio = '';\n\n// ---- WHATSAPP (YCloud) ----\nif (body.whatsappInboundMessage) {\n  const wa = body.whatsappInboundMessage;\n  canal          = 'whatsapp';\n  telefono       = wa.from || '';\n  nombre         = wa.customerProfile?.name || 'Sin nombre';\n  mensaje        = wa.text?.body || '';\n  idMensaje      = wa.wamid || wa.id || '';\n  tipoMensaje    = wa.type || 'text';\n  audioId        = wa.audio?.id || '';\n  imageCaption   = wa.image?.caption || '';\n  numeroNegocio  = wa.to || '';\n}\n\n// ---- MESSENGER (Meta) ----\nelse if (body.object === 'page' || body.entry) {\n  canal = 'messenger';\n  try {\n    const entry    = body.entry?.[0];\n    const msgEvent = entry?.messaging?.[0];\n    telefono       = msgEvent?.sender?.id || '';\n    nombre         = 'Usuario Messenger';\n    mensaje        = msgEvent?.message?.text || '';\n    idMensaje      = msgEvent?.message?.mid || '';\n    numeroNegocio  = msgEvent?.recipient?.id || '';\n  } catch(e) {}\n}\n\n// ---- WEBCHAT ----\nelse if (body.canal === 'webchat' || body.source === 'webchat') {\n  canal         = 'webchat';\n  telefono      = body.session_id || body.userId || '';\n  nombre        = body.nombre || body.name || 'Visitante Web';\n  mensaje       = body.mensaje || body.message || body.text || '';\n  idMensaje     = body.msg_id || Date.now().toString();\n  numeroNegocio = 'webchat';\n}\n\n// ---- FORMULARIO ----\nelse if (body.canal === 'formulario' || body.source === 'form') {\n  canal         = 'formulario';\n  telefono      = body.telefono || body.phone || body.whatsapp || '';\n  nombre        = body.nombre || body.name || '';\n  mensaje       = body.mensaje || body.consulta || body.message || '';\n  idMensaje     = body.form_id || Date.now().toString();\n  numeroNegocio = 'formulario';\n}\n\nreturn [{ json: {\n  canal,\n  Telefono:      telefono,\n  Nombre:        nombre,\n  Mensaje:       mensaje,\n  IDMensaje:     idMensaje,\n  TipoMensaje:   tipoMensaje,\n  audioId,\n  imageCaption,\n  NumeroNegocio: numeroNegocio,\n  timestamp:     new Date().toISOString()\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [52640, 20336],
+      "id": "code-norm-001",
+      "name": "Normalizar Canal"
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": { "value": "public" },
+        "table": { "value": "contactos" },
+        "where": {
+          "values": [
+            {
+              "column": "telefono",
+              "value": "={{ $json.Telefono }}"
+            }
+          ]
+        },
+        "options": { "queryBatching": "independently" }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [52880, 20336],
+      "id": "pg-buscar-001",
+      "name": "Buscar Contacto en BD",
+      "credentials": {
+        "postgres": {
+          "id": "{{N8N_POSTGRES_CREDENTIAL_ID}}",
+          "name": "{{N8N_POSTGRES_CREDENTIAL_NAME}}"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+          "conditions": [
+            {
+              "id": "cond-existe-001",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "isNotEmpty" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [53120, 20336],
+      "id": "if-existe-001",
+      "name": "IF Contacto Existe?"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Contacto nuevo — pre-carga datos mínimos\nconst base = $input.first().json;\nreturn [{ json: { ...base, tipo_contacto: 'nuevo' } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [53360, 20480],
+      "id": "code-nuevo-001",
+      "name": "Precargar Nuevo Contacto"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Contacto recurrente — pre-carga historial\nconst base = $input.first().json;\nreturn [{ json: { ...base, tipo_contacto: 'recurrente' } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [53360, 20200],
+      "id": "code-recurrente-001",
+      "name": "Precargar Contacto Recurrente"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+                "conditions": [{ "id": "sw-txt-001", "leftValue": "={{ $json.TipoMensaje }}", "rightValue": "text", "operator": { "type": "string", "operation": "equals" } }],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "texto"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+                "conditions": [{ "id": "sw-aud-001", "leftValue": "={{ $json.TipoMensaje }}", "rightValue": "audio", "operator": { "type": "string", "operation": "equals" } }],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "audio"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+                "conditions": [{ "id": "sw-img-001", "leftValue": "={{ $json.TipoMensaje }}", "rightValue": "image", "operator": { "type": "string", "operation": "equals" } }],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "imagen"
+            }
+          ]
+        },
+        "options": { "fallbackOutput": "extra", "renameFallbackOutput": "texto" }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [53600, 20336],
+      "id": "sw-tipo-001",
+      "name": "Clasificar Tipo Mensaje"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "au-url-001", "name": "url", "value": "={{ $('Webhook WhatsApp').first().json.body.whatsappInboundMessage.audio.link }}", "type": "string" },
+            { "id": "au-mime-001", "name": "mimeType", "value": "={{ $('Webhook WhatsApp').first().json.body.whatsappInboundMessage.audio.mimeType || 'audio/ogg' }}", "type": "string" },
+            { "id": "au-id-001", "name": "mediaId", "value": "={{ $('Webhook WhatsApp').first().json.body.whatsappInboundMessage.audio.id }}", "type": "string" }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [53800, 20200],
+      "id": "set-audio-url-001",
+      "name": "Get Media URL Audio"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "X-API-Key", "value": "={{$vars.YCLOUD_API_KEY}}" }]
+        },
+        "options": { "response": { "response": { "responseFormat": "file" } } }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [53990, 20200],
+      "id": "http-dl-audio-001",
+      "name": "Download Audio"
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [54160, 20200],
+      "id": "ai-transcribe-001",
+      "name": "Transcribe Audio",
+      "credentials": {
+        "openAiApi": {
+          "id": "{{N8N_OPENAI_CREDENTIAL_ID}}",
+          "name": "{{N8N_OPENAI_CREDENTIAL_NAME}}"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": { "value": "gpt-4o-mini" },
+        "messages": {
+          "messageValues": [
+            {
+              "message": "Eres el asistente virtual de Juare Tires, una llantera que ofrece llantas nuevas y seminuevas, alineación, balanceo, montaje y reparación. Ayudas a los clientes a encontrar la llanta correcta para su vehículo, cotizar precios y agendar su visita.\n\nResponde siempre en español, de forma amable y concisa. Si no sabes algo, di que lo consultarás y pide el número de WhatsApp para dar seguimiento."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [54400, 20336],
+      "id": "ai-agente-001",
+      "name": "Agente IA",
+      "credentials": {
+        "openAiApi": {
+          "id": "{{N8N_OPENAI_CREDENTIAL_ID}}",
+          "name": "{{N8N_OPENAI_CREDENTIAL_NAME}}"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": { "value": "public" },
+        "table": { "value": "conversaciones" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "telefono": "={{ $('Normalizar Canal').first().json.Telefono }}",
+            "canal": "={{ $('Normalizar Canal').first().json.canal }}",
+            "rol": "assistant",
+            "contenido": "={{ $json.message.content }}"
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [54600, 20336],
+      "id": "pg-guardar-resp-001",
+      "name": "Guardar Respuesta en BD",
+      "credentials": {
+        "postgres": {
+          "id": "{{N8N_POSTGRES_CREDENTIAL_ID}}",
+          "name": "{{N8N_POSTGRES_CREDENTIAL_NAME}}"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.ycloud.com/v2/whatsapp/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-API-Key", "value": "={{$vars.YCLOUD_API_KEY}}" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "to", "value": "={{ $('Normalizar Canal').first().json.Telefono }}" },
+            { "name": "from", "value": "={{ $('Normalizar Canal').first().json.NumeroNegocio }}" },
+            { "name": "type", "value": "text" },
+            { "name": "text", "value": "={ \"body\": \"{{ $('Agente IA').first().json.message.content }}\" }" }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [54800, 20336],
+      "id": "http-enviar-wa-001",
+      "name": "Enviar Respuesta WhatsApp"
+    }
+  ],
+  "connections": {
+    "Webhook WhatsApp":     { "main": [[{ "node": "Normalizar Canal", "type": "main", "index": 0 }]] },
+    "Webhook Messenger":    { "main": [[{ "node": "Normalizar Canal", "type": "main", "index": 0 }]] },
+    "Webhook Webchat":      { "main": [[{ "node": "Normalizar Canal", "type": "main", "index": 0 }]] },
+    "Webhook Formulario":   { "main": [[{ "node": "Normalizar Canal", "type": "main", "index": 0 }]] },
+    "Normalizar Canal":     { "main": [[{ "node": "Buscar Contacto en BD", "type": "main", "index": 0 }]] },
+    "Buscar Contacto en BD":{ "main": [[{ "node": "IF Contacto Existe?", "type": "main", "index": 0 }]] },
+    "IF Contacto Existe?":  {
+      "main": [
+        [{ "node": "Precargar Contacto Recurrente", "type": "main", "index": 0 }],
+        [{ "node": "Precargar Nuevo Contacto",      "type": "main", "index": 0 }]
+      ]
+    },
+    "Precargar Contacto Recurrente": { "main": [[{ "node": "Clasificar Tipo Mensaje", "type": "main", "index": 0 }]] },
+    "Precargar Nuevo Contacto":      { "main": [[{ "node": "Clasificar Tipo Mensaje", "type": "main", "index": 0 }]] },
+    "Clasificar Tipo Mensaje": {
+      "main": [
+        [{ "node": "Agente IA",           "type": "main", "index": 0 }],
+        [{ "node": "Get Media URL Audio",  "type": "main", "index": 0 }],
+        [{ "node": "Agente IA",            "type": "main", "index": 0 }]
+      ]
+    },
+    "Get Media URL Audio": { "main": [[{ "node": "Download Audio",    "type": "main", "index": 0 }]] },
+    "Download Audio":      { "main": [[{ "node": "Transcribe Audio",  "type": "main", "index": 0 }]] },
+    "Transcribe Audio":    { "main": [[{ "node": "Agente IA",         "type": "main", "index": 0 }]] },
+    "Agente IA":           { "main": [[{ "node": "Guardar Respuesta en BD", "type": "main", "index": 0 }]] },
+    "Guardar Respuesta en BD": { "main": [[{ "node": "Enviar Respuesta WhatsApp", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": ["juare-tires", "chatbot", "black-sheep"],
+  "_tokens_pendientes": {
+    "{{N8N_POSTGRES_CREDENTIAL_ID}}": "ID de la credencial Postgres en tu instancia de n8n",
+    "{{N8N_POSTGRES_CREDENTIAL_NAME}}":"nombre de la credencial Postgres en tu instancia de n8n",
+    "{{N8N_OPENAI_CREDENTIAL_ID}}":   "ID de la credencial OpenAI en tu instancia de n8n",
+    "{{N8N_OPENAI_CREDENTIAL_NAME}}": "nombre de la credencial OpenAI en tu instancia de n8n",
+    "YCLOUD_API_KEY":                 "variable de entorno en n8n con la API key de YCloud"
+  }
+}
