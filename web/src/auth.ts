@@ -8,6 +8,12 @@ interface CrmUserRow {
   username: string;
   password_hash: string;
   nombre: string;
+  rol: string;
+}
+
+declare module "next-auth" {
+  interface User { rol?: string }
+  interface Session { user: { rol?: string; name?: string | null; email?: string | null } }
 }
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
@@ -23,7 +29,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (typeof username !== "string" || typeof password !== "string") return null;
 
         const { rows } = await query<CrmUserRow>(
-          "SELECT id, username, password_hash, nombre FROM crm_usuarios WHERE username = $1 AND activo = true",
+          `SELECT id, username, password_hash, nombre, rol
+           FROM crm_usuarios WHERE username = $1 AND activo = true`,
           [username]
         );
         const user = rows[0];
@@ -32,10 +39,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const valid = await bcrypt.compare(password, user.password_hash);
         if (!valid) return null;
 
-        return { id: String(user.id), name: user.nombre, email: user.username };
+        return { id: String(user.id), name: user.nombre, email: user.username, rol: user.rol };
       },
     }),
   ],
+  callbacks: {
+    jwt({ token, user }) {
+      if (user) token.rol = (user as { rol?: string }).rol;
+      return token;
+    },
+    session({ session, token }) {
+      if (session.user) session.user.rol = token.rol as string | undefined;
+      return session;
+    },
+  },
   pages: { signIn: "/crm/login" },
   session: { strategy: "jwt" },
   secret: process.env.AUTH_SECRET,
