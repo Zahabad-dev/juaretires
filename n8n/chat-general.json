@@ -1,12 +1,11 @@
 {
   "name": "CHAT GENERAL — Juare Tires",
   "nodes": [
-
     {
       "parameters": { "httpMethod": "POST", "path": "juare-wa", "options": {} },
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
-      "position": [200, 300],
+      "position": [200, 360],
       "id": "wh-wa",
       "name": "Webhook WhatsApp",
       "webhookId": "juare-wa"
@@ -15,7 +14,7 @@
       "parameters": { "httpMethod": "POST", "path": "juare-messenger", "options": {} },
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
-      "position": [200, 460],
+      "position": [200, 520],
       "id": "wh-ms",
       "name": "Webhook Messenger",
       "webhookId": "juare-messenger"
@@ -24,7 +23,7 @@
       "parameters": { "httpMethod": "POST", "path": "juare-webchat", "options": {} },
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
-      "position": [200, 620],
+      "position": [200, 680],
       "id": "wh-wc",
       "name": "Webhook Webchat",
       "webhookId": "juare-webchat"
@@ -33,7 +32,7 @@
       "parameters": { "httpMethod": "POST", "path": "juare-form", "options": {} },
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
-      "position": [200, 780],
+      "position": [200, 840],
       "id": "wh-fm",
       "name": "Webhook Formulario",
       "webhookId": "juare-form"
@@ -41,22 +40,137 @@
 
     {
       "parameters": {
-        "jsCode": "const body = $json.body || $json;\nlet canal = 'desconocido', telefono = '', nombre = 'Cliente', mensaje = '', idMensaje = '', tipoMensaje = 'text', audioUrl = '', numeroNegocio = '';\n\nif (body.whatsappInboundMessage) {\n  const wa = body.whatsappInboundMessage;\n  canal         = 'whatsapp';\n  telefono      = wa.from || '';\n  nombre        = wa.customerProfile?.name || 'Cliente';\n  mensaje       = wa.text?.body || wa.image?.caption || '';\n  idMensaje     = wa.wamid || wa.id || '';\n  tipoMensaje   = wa.type || 'text';\n  audioUrl      = wa.audio?.link || '';\n  numeroNegocio = wa.to || '';\n} else if (body.object === 'page' || body.entry) {\n  canal = 'messenger';\n  try {\n    const ev = body.entry?.[0]?.messaging?.[0];\n    telefono      = ev?.sender?.id || '';\n    nombre        = 'Usuario Messenger';\n    mensaje       = ev?.message?.text || '';\n    idMensaje     = ev?.message?.mid || '';\n    numeroNegocio = ev?.recipient?.id || '';\n  } catch(e){}\n} else if (body.canal === 'webchat' || body.source === 'webchat') {\n  canal         = 'webchat';\n  telefono      = body.session_id || body.userId || '';\n  nombre        = body.nombre || 'Visitante';\n  mensaje       = body.mensaje || body.message || '';\n  idMensaje     = body.msg_id || Date.now().toString();\n  numeroNegocio = 'webchat';\n} else if (body.canal === 'formulario' || body.source === 'form') {\n  canal         = 'formulario';\n  telefono      = body.telefono || body.phone || '';\n  nombre        = body.nombre || '';\n  mensaje       = body.mensaje || body.consulta || '';\n  idMensaje     = body.form_id || Date.now().toString();\n  numeroNegocio = 'formulario';\n}\n\nreturn [{ json: { canal, telefono, nombre, mensaje, idMensaje, tipoMensaje, audioUrl, numeroNegocio, ts: new Date().toISOString() } }];"
+        "jsCode": "const body = $json.body || $json;\nlet canal = 'desconocido', telefono = '', nombre = 'Cliente', mensaje = '',\n    idMensaje = '', tipoMensaje = 'text', audioUrl = '', imageUrl = '',\n    imageCaption = '', numeroNegocio = '';\n\nif (body.whatsappInboundMessage) {\n  const wa = body.whatsappInboundMessage;\n  canal         = 'whatsapp';\n  telefono      = wa.from || '';\n  nombre        = wa.customerProfile?.name || 'Cliente';\n  mensaje       = wa.text?.body || wa.image?.caption || '';\n  idMensaje     = wa.wamid || wa.id || '';\n  tipoMensaje   = wa.type || 'text';\n  audioUrl      = wa.audio?.link || '';\n  imageUrl      = wa.image?.link || '';\n  imageCaption  = wa.image?.caption || '';\n  numeroNegocio = wa.to || '';\n} else if (body.object === 'page' || body.entry) {\n  canal = 'messenger';\n  try {\n    const ev      = body.entry?.[0]?.messaging?.[0];\n    telefono      = ev?.sender?.id || '';\n    nombre        = 'Usuario Messenger';\n    mensaje       = ev?.message?.text || '';\n    idMensaje     = ev?.message?.mid || '';\n    numeroNegocio = ev?.recipient?.id || '';\n  } catch(e) {}\n} else if (body.canal === 'webchat' || body.source === 'webchat') {\n  canal         = 'webchat';\n  telefono      = body.session_id || body.userId || '';\n  nombre        = body.nombre || 'Visitante';\n  mensaje       = body.mensaje || body.message || '';\n  idMensaje     = body.msg_id || Date.now().toString();\n  numeroNegocio = 'webchat';\n} else if (body.canal === 'formulario' || body.source === 'form') {\n  canal         = 'formulario';\n  telefono      = body.telefono || body.phone || '';\n  nombre        = body.nombre || '';\n  mensaje       = body.mensaje || body.consulta || '';\n  idMensaje     = body.form_id || Date.now().toString();\n  numeroNegocio = 'formulario';\n}\n\nreturn [{ json: { canal, telefono, nombre, mensaje, idMensaje, tipoMensaje, audioUrl, imageUrl, imageCaption, numeroNegocio, ts: new Date().toISOString() } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [460, 540],
+      "position": [440, 560],
       "id": "norm",
       "name": "Normalizar Canal"
     },
 
     {
       "parameters": {
-        "jsCode": "const msg = ($json.mensaje || '').toLowerCase();\n\nconst COTIZ = ['cotiz','precio','cuanto','cuánto','cuesta','valen','vale','presupuesto','cuanto sale','cuánto sale'];\nconst STOCK = ['tienen','hay','stock','disponible','existe','manejan','llanta','llantas','rin','rines','medida','seminueva','nueva','usada','r13','r14','r15','r16','r17','r18','r19','r20','175','185','195','205','215','225','235','245','255'];\n\nlet intencion = 'general';\nif (COTIZ.some(k => msg.includes(k))) intencion = 'solicitud_cotizacion';\nelse if (STOCK.some(k => msg.includes(k))) intencion = 'consulta_stock';\n\nreturn [{ json: { ...$json, intencion } }];"
+        "rules": {
+          "values": [
+            {
+              "conditions": { "conditions": [{ "id": "st1", "leftValue": "={{ $json.tipoMensaje }}", "rightValue": "text", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and", "options": { "caseSensitive": false, "typeValidation": "strict", "version": 2 } },
+              "renameOutput": true, "outputKey": "texto"
+            },
+            {
+              "conditions": { "conditions": [{ "id": "st2", "leftValue": "={{ $json.tipoMensaje }}", "rightValue": "audio", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and", "options": { "caseSensitive": false, "typeValidation": "strict", "version": 2 } },
+              "renameOutput": true, "outputKey": "audio"
+            },
+            {
+              "conditions": { "conditions": [{ "id": "st3", "leftValue": "={{ $json.tipoMensaje }}", "rightValue": "image", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and", "options": { "caseSensitive": false, "typeValidation": "strict", "version": 2 } },
+              "renameOutput": true, "outputKey": "imagen"
+            }
+          ]
+        },
+        "options": { "fallbackOutput": "extra", "renameFallbackOutput": "texto" }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [680, 560],
+      "id": "sw-tipo",
+      "name": "Clasificar Tipo Mensaje"
+    },
+
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { ...$json, mensajeFinal: $json.mensaje || '' } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [680, 540],
+      "position": [920, 560],
+      "id": "prep-texto",
+      "name": "Preparar Texto"
+    },
+
+    {
+      "parameters": {
+        "url": "={{ $json.audioUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "X-API-Key", "value": "={{ $vars.YCLOUD_API_KEY }}" }]
+        },
+        "options": { "response": { "response": { "responseFormat": "file" } } }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [920, 380],
+      "id": "dl-audio",
+      "name": "Descargar Audio"
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [1140, 380],
+      "id": "transcribe",
+      "name": "Transcribir Audio (Whisper)",
+      "credentials": {
+        "openAiApi": {
+          "id": "{{N8N_OPENAI_CREDENTIAL_ID}}",
+          "name": "{{N8N_OPENAI_CREDENTIAL_NAME}}"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const normData = $('Normalizar Canal').first().json;\nconst transcript = $json.text || $json.transcription || '[Audio no transcribible]';\nreturn [{ json: { ...normData, mensajeFinal: transcript } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1360, 380],
+      "id": "set-transcript",
+      "name": "Set Transcript"
+    },
+
+    {
+      "parameters": {
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-4o', messages: [{ role: 'user', content: [{ type: 'text', text: 'Eres asistente de Juare Tires, una llantera en Juárez. Analiza la imagen y describe brevemente: tipo de llanta, medida visible, daños o condición, y cómo puede ayudar la llantera. Máx 2-3 líneas.' + ($json.imageCaption ? ' Caption del cliente: ' + $json.imageCaption : '') }, { type: 'image_url', image_url: { url: $json.imageUrl, detail: 'low' } }] }], max_tokens: 400 }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [920, 200],
+      "id": "vision",
+      "name": "Analizar Imagen (GPT-4o Vision)",
+      "credentials": {
+        "openAiApi": {
+          "id": "{{N8N_OPENAI_CREDENTIAL_ID}}",
+          "name": "{{N8N_OPENAI_CREDENTIAL_NAME}}"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const normData = $('Normalizar Canal').first().json;\nconst desc = $json.choices?.[0]?.message?.content || normData.imageCaption || '[Imagen recibida]';\nconst mensajeFinal = '[Imagen] ' + desc;\nreturn [{ json: { ...normData, mensajeFinal } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1140, 200],
+      "id": "set-img-desc",
+      "name": "Set Descripción Imagen"
+    },
+
+    {
+      "parameters": {
+        "jsCode": "const msg = ($json.mensajeFinal || $json.mensaje || '').toLowerCase();\n\nconst COTIZ = ['cotiz','precio','cuanto','cuánto','cuesta','valen','vale','presupuesto','cuanto sale','cuánto sale','cobran','cobras'];\nconst STOCK = ['tienen','hay','stock','disponible','existe','manejan','llanta','llantas','rin','rines','medida','seminueva','nueva','usada','r13','r14','r15','r16','r17','r18','r19','r20','175','185','195','205','215','225','235','245','255','265'];\n\nlet intencion = 'general';\nif (COTIZ.some(k => msg.includes(k))) intencion = 'solicitud_cotizacion';\nelse if (STOCK.some(k => msg.includes(k))) intencion = 'consulta_stock';\n\nreturn [{ json: { ...$json, intencion } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1580, 560],
       "id": "intent",
       "name": "Clasificar Intención"
     },
@@ -66,11 +180,11 @@
         "rules": {
           "values": [
             {
-              "conditions": { "conditions": [{ "id": "c1", "leftValue": "={{ $json.intencion }}", "rightValue": "consulta_stock", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and", "options": { "caseSensitive": false, "typeValidation": "strict", "version": 2 } },
+              "conditions": { "conditions": [{ "id": "si1", "leftValue": "={{ $json.intencion }}", "rightValue": "consulta_stock", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and", "options": { "caseSensitive": false, "typeValidation": "strict", "version": 2 } },
               "renameOutput": true, "outputKey": "stock"
             },
             {
-              "conditions": { "conditions": [{ "id": "c2", "leftValue": "={{ $json.intencion }}", "rightValue": "solicitud_cotizacion", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and", "options": { "caseSensitive": false, "typeValidation": "strict", "version": 2 } },
+              "conditions": { "conditions": [{ "id": "si2", "leftValue": "={{ $json.intencion }}", "rightValue": "solicitud_cotizacion", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and", "options": { "caseSensitive": false, "typeValidation": "strict", "version": 2 } },
               "renameOutput": true, "outputKey": "cotizacion"
             }
           ]
@@ -79,7 +193,7 @@
       },
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.3,
-      "position": [900, 540],
+      "position": [1800, 560],
       "id": "sw-intent",
       "name": "Switch Intención"
     },
@@ -93,7 +207,7 @@
       },
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
-      "position": [1120, 380],
+      "position": [2020, 400],
       "id": "gs-stock",
       "name": "Leer Stock Google Sheets",
       "credentials": {
@@ -103,16 +217,26 @@
         }
       }
     },
-
     {
       "parameters": {
-        "jsCode": "const filas = $input.all();\nconst base  = $('Clasificar Intención').first().json;\n\nconst inventario = filas.length\n  ? filas.map(f => {\n      const r = f.json;\n      return `• ${r.Producto||r.producto||'—'} | Medida: ${r.Medida||r.medida||'—'} | Disponible: ${r.Stock||r.stock||'0'} | Precio: ${r.Precio||r.precio||'—'}`;\n    }).join('\\n')\n  : 'Sin datos de inventario disponibles.';\n\nreturn [{ json: { ...base, contexto_extra: `INVENTARIO ACTUAL (solo cita lo que aparece aquí):\\n${inventario}` } }];"
+        "jsCode": "const filas = $input.all();\nconst base  = $('Clasificar Intención').first().json;\n\nconst inventario = filas.length\n  ? filas.map(f => {\n      const r = f.json;\n      return `• ${r.Producto||r.producto||'—'} | Medida: ${r.Medida||r.medida||'—'} | Disponible: ${r.Stock||r.stock||'0'} | Precio: ${r.Precio||r.precio||'Consultar'}`;\n    }).join('\\n')\n  : 'Sin datos de inventario disponibles.';\n\nreturn [{ json: { ...base, contexto_extra: `INVENTARIO ACTUAL (cita solo lo que aparece aquí):\\n${inventario}` } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1340, 380],
+      "position": [2240, 400],
       "id": "ctx-stock",
       "name": "Armar Contexto Stock"
+    },
+
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { ...$json, contexto_extra: '' } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2020, 560],
+      "id": "ctx-gen",
+      "name": "Contexto General"
     },
 
     {
@@ -123,12 +247,12 @@
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
-            "telefono":  "={{ $json.telefono }}",
-            "nombre":    "={{ $json.nombre }}",
-            "canal":     "={{ $json.canal }}",
-            "productos": "={{ $json.mensaje }}",
-            "estado":    "Nuevo",
-            "prioridad": "MEDIA",
+            "telefono":      "={{ $json.telefono }}",
+            "nombre":        "={{ $json.nombre }}",
+            "canal":         "={{ $json.canal }}",
+            "productos":     "={{ $json.mensajeFinal || $json.mensaje }}",
+            "estado":        "Nuevo",
+            "prioridad":     "MEDIA",
             "bot_bloqueado": false
           }
         },
@@ -136,7 +260,7 @@
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.5,
-      "position": [1120, 700],
+      "position": [2020, 720],
       "id": "pg-sol",
       "name": "Guardar Solicitud BD",
       "credentials": {
@@ -146,27 +270,55 @@
         }
       }
     },
-
     {
       "parameters": {
-        "jsCode": "const base = $('Clasificar Intención').first().json;\nreturn [{ json: { ...base, contexto_extra: 'El cliente solicitó una cotización. Confirma amablemente que fue registrada y que en breve un asesor le enviará los precios exactos. No inventes precios.' } }];"
+        "jsCode": "const base = $('Clasificar Intención').first().json;\nreturn [{ json: { ...base, contexto_extra: 'El cliente solicita una cotización. Confirma amablemente que quedó registrada y que en breve un asesor le enviará precios exactos. No inventes precios.' } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1340, 700],
+      "position": [2240, 720],
       "id": "ctx-cotiz",
       "name": "Contexto Cotización"
     },
 
     {
       "parameters": {
-        "jsCode": "const base = $('Clasificar Intención').first().json;\nreturn [{ json: { ...base, contexto_extra: '' } }];"
+        "jsCode": "return [{ json: {\n  telefono:      $json.telefono || '',\n  nombre:        $json.nombre || 'Cliente',\n  canal:         $json.canal || '',\n  numeroNegocio: $json.numeroNegocio || '',\n  mensajeFinal:  $json.mensajeFinal || $json.mensaje || '',\n  contextoExtra: $json.contexto_extra || '',\n  intencion:     $json.intencion || 'general'\n} }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1120, 540],
-      "id": "ctx-gen",
-      "name": "Contexto General"
+      "position": [2460, 560],
+      "id": "consolid",
+      "name": "Consolidar Contexto"
+    },
+
+    {
+      "parameters": {
+        "operation": "get",
+        "key": "={{ 'juare:session:' + $json.telefono }}"
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [2680, 560],
+      "id": "redis-get",
+      "name": "Recuperar Historial Redis",
+      "credentials": {
+        "redis": {
+          "id": "{{N8N_REDIS_CREDENTIAL_ID}}",
+          "name": "{{N8N_REDIS_CREDENTIAL_NAME}}"
+        }
+      }
+    },
+
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Consolidar Contexto').first().json;\nconst raw = $json.value || null;\nlet historial = [];\nif (raw) { try { historial = JSON.parse(raw); } catch(e) {} }\n\nconst ultimos = historial.slice(-8);\nconst historialTexto = ultimos.length > 0\n  ? ultimos.map(m => (m.rol === 'user' ? 'Cliente' : 'Asistente') + ': ' + m.contenido).join('\\n') + '\\n\\n'\n  : '';\n\nreturn [{ json: {\n  ...ctx,\n  historial,\n  historialTexto,\n  promptFinal: historialTexto + (ctx.contextoExtra ? ctx.contextoExtra + '\\n\\n' : '') + 'Mensaje del cliente: ' + ctx.mensajeFinal\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2900, 560],
+      "id": "prep-prompt",
+      "name": "Preparar Prompt con Historial"
     },
 
     {
@@ -175,7 +327,7 @@
         "messages": {
           "messageValues": [
             {
-              "message": "={{ 'Eres el asistente virtual de Juare Tires, una llantera en Juárez que ofrece llantas nuevas y seminuevas, alineación, balanceo, montaje y reparación.\\n\\nReglas:\\n- Responde siempre en español, de forma amable, breve y profesional.\\n- Si el cliente pregunta por disponibilidad o precios específicos sin datos de inventario, diles que con gusto les cotiza un asesor por WhatsApp.\\n- No inventes precios ni disponibilidad.\\n- Si tienes contexto de inventario, úsalo fielmente.\\n\\n' + ($json.contexto_extra ? $json.contexto_extra + '\\n\\n' : '') + 'Mensaje del cliente: ' + $json.mensaje }}"
+              "message": "={{ 'Eres el asistente virtual de Juare Tires, una llantera en Ciudad Juárez que ofrece llantas nuevas y seminuevas, alineación, balanceo, montaje y reparación.\\n\\nReglas:\\n- Responde en español, de forma amable, breve y profesional (máx 3 párrafos).\\n- No inventes precios ni disponibilidad de stock.\\n- Si tienes datos de inventario en el contexto, úsalos fielmente y cita solo lo que aparece ahí.\\n- Si el cliente pide precios sin datos disponibles, dile que un asesor le cotizará por WhatsApp a la brevedad.\\n- Si el cliente envió una imagen, responde en contexto a la descripción de la imagen.\\n- Mantén el hilo de la conversación usando el historial previo.\\n\\n' + $json.promptFinal }}"
             }
           ]
         },
@@ -183,7 +335,7 @@
       },
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 2.1,
-      "position": [1560, 540],
+      "position": [3120, 560],
       "id": "agente",
       "name": "Agente IA",
       "credentials": {
@@ -196,14 +348,46 @@
 
     {
       "parameters": {
+        "jsCode": "const ctx = $('Consolidar Contexto').first().json;\nconst prepData = $('Preparar Prompt con Historial').first().json;\nconst respuesta = $json.message?.content || '';\nconst historialActual = prepData.historial || [];\nconst nuevoHistorial = [\n  ...historialActual.slice(-9),\n  { rol: 'user', contenido: ctx.mensajeFinal },\n  { rol: 'assistant', contenido: respuesta }\n];\nreturn [{ json: {\n  ...ctx,\n  respuesta,\n  nuevoHistorial: JSON.stringify(nuevoHistorial)\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3340, 560],
+      "id": "update-hist",
+      "name": "Actualizar Historial"
+    },
+
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "={{ 'juare:session:' + $json.telefono }}",
+        "value": "={{ $json.nuevoHistorial }}",
+        "expire": true,
+        "ttl": 3600
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [3560, 560],
+      "id": "redis-set",
+      "name": "Guardar Historial Redis",
+      "credentials": {
+        "redis": {
+          "id": "{{N8N_REDIS_CREDENTIAL_ID}}",
+          "name": "{{N8N_REDIS_CREDENTIAL_NAME}}"
+        }
+      }
+    },
+
+    {
+      "parameters": {
         "rules": {
           "values": [
             {
-              "conditions": { "conditions": [{ "id": "rc1", "leftValue": "={{ $('Normalizar Canal').first().json.canal }}", "rightValue": "whatsapp", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and", "options": { "caseSensitive": false, "typeValidation": "strict", "version": 2 } },
+              "conditions": { "conditions": [{ "id": "rc1", "leftValue": "={{ $('Actualizar Historial').first().json.canal }}", "rightValue": "whatsapp", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and", "options": { "caseSensitive": false, "typeValidation": "strict", "version": 2 } },
               "renameOutput": true, "outputKey": "whatsapp"
             },
             {
-              "conditions": { "conditions": [{ "id": "rc2", "leftValue": "={{ $('Normalizar Canal').first().json.canal }}", "rightValue": "messenger", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and", "options": { "caseSensitive": false, "typeValidation": "strict", "version": 2 } },
+              "conditions": { "conditions": [{ "id": "rc2", "leftValue": "={{ $('Actualizar Historial').first().json.canal }}", "rightValue": "messenger", "operator": { "type": "string", "operation": "equals" } }], "combinator": "and", "options": { "caseSensitive": false, "typeValidation": "strict", "version": 2 } },
               "renameOutput": true, "outputKey": "messenger"
             }
           ]
@@ -212,7 +396,7 @@
       },
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.3,
-      "position": [1780, 540],
+      "position": [3780, 560],
       "id": "sw-canal",
       "name": "Switch Canal Respuesta"
     },
@@ -229,18 +413,18 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ to: $('Normalizar Canal').first().json.telefono, from: $('Normalizar Canal').first().json.numeroNegocio, type: 'text', text: { body: $('Agente IA').first().json.message.content } }) }}"
+        "jsonBody": "={{ JSON.stringify({ to: $('Actualizar Historial').first().json.telefono, from: $('Actualizar Historial').first().json.numeroNegocio, type: 'text', text: { body: $('Actualizar Historial').first().json.respuesta } }) }}"
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2000, 420],
+      "position": [4000, 440],
       "id": "send-wa",
       "name": "Enviar WhatsApp (YCloud)"
     },
 
     {
       "parameters": {
-        "url": "=https://graph.facebook.com/v19.0/{{ $('Normalizar Canal').first().json.numeroNegocio }}/messages",
+        "url": "=https://graph.facebook.com/v19.0/{{ $('Actualizar Historial').first().json.numeroNegocio }}/messages",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -250,11 +434,11 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ recipient: { id: $('Normalizar Canal').first().json.telefono }, message: { text: $('Agente IA').first().json.message.content } }) }}"
+        "jsonBody": "={{ JSON.stringify({ recipient: { id: $('Actualizar Historial').first().json.telefono }, message: { text: $('Actualizar Historial').first().json.respuesta } }) }}"
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2000, 580],
+      "position": [4000, 580],
       "id": "send-ms",
       "name": "Enviar Messenger"
     },
@@ -262,15 +446,14 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ reply: $('Agente IA').first().json.message.content }) }}"
+        "responseBody": "={{ JSON.stringify({ reply: $('Actualizar Historial').first().json.respuesta }) }}"
       },
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [2000, 720],
+      "position": [4000, 720],
       "id": "send-web",
       "name": "Responder Webchat/Form"
     }
-
   ],
 
   "connections": {
@@ -278,8 +461,27 @@
     "Webhook Messenger":  { "main": [[{ "node": "Normalizar Canal", "type": "main", "index": 0 }]] },
     "Webhook Webchat":    { "main": [[{ "node": "Normalizar Canal", "type": "main", "index": 0 }]] },
     "Webhook Formulario": { "main": [[{ "node": "Normalizar Canal", "type": "main", "index": 0 }]] },
-    "Normalizar Canal":   { "main": [[{ "node": "Clasificar Intención", "type": "main", "index": 0 }]] },
+
+    "Normalizar Canal": { "main": [[{ "node": "Clasificar Tipo Mensaje", "type": "main", "index": 0 }]] },
+
+    "Clasificar Tipo Mensaje": {
+      "main": [
+        [{ "node": "Preparar Texto",                    "type": "main", "index": 0 }],
+        [{ "node": "Descargar Audio",                   "type": "main", "index": 0 }],
+        [{ "node": "Analizar Imagen (GPT-4o Vision)",   "type": "main", "index": 0 }],
+        [{ "node": "Preparar Texto",                    "type": "main", "index": 0 }]
+      ]
+    },
+
+    "Preparar Texto":                  { "main": [[{ "node": "Clasificar Intención", "type": "main", "index": 0 }]] },
+    "Descargar Audio":                 { "main": [[{ "node": "Transcribir Audio (Whisper)", "type": "main", "index": 0 }]] },
+    "Transcribir Audio (Whisper)":     { "main": [[{ "node": "Set Transcript",        "type": "main", "index": 0 }]] },
+    "Set Transcript":                  { "main": [[{ "node": "Clasificar Intención", "type": "main", "index": 0 }]] },
+    "Analizar Imagen (GPT-4o Vision)": { "main": [[{ "node": "Set Descripción Imagen","type": "main", "index": 0 }]] },
+    "Set Descripción Imagen":          { "main": [[{ "node": "Clasificar Intención", "type": "main", "index": 0 }]] },
+
     "Clasificar Intención": { "main": [[{ "node": "Switch Intención", "type": "main", "index": 0 }]] },
+
     "Switch Intención": {
       "main": [
         [{ "node": "Leer Stock Google Sheets", "type": "main", "index": 0 }],
@@ -287,12 +489,20 @@
         [{ "node": "Contexto General",           "type": "main", "index": 0 }]
       ]
     },
+
     "Leer Stock Google Sheets": { "main": [[{ "node": "Armar Contexto Stock", "type": "main", "index": 0 }]] },
-    "Armar Contexto Stock":     { "main": [[{ "node": "Agente IA",            "type": "main", "index": 0 }]] },
+    "Armar Contexto Stock":     { "main": [[{ "node": "Consolidar Contexto",  "type": "main", "index": 0 }]] },
+    "Contexto General":         { "main": [[{ "node": "Consolidar Contexto",  "type": "main", "index": 0 }]] },
     "Guardar Solicitud BD":     { "main": [[{ "node": "Contexto Cotización",   "type": "main", "index": 0 }]] },
-    "Contexto Cotización":      { "main": [[{ "node": "Agente IA",            "type": "main", "index": 0 }]] },
-    "Contexto General":         { "main": [[{ "node": "Agente IA",            "type": "main", "index": 0 }]] },
-    "Agente IA":                { "main": [[{ "node": "Switch Canal Respuesta","type": "main", "index": 0 }]] },
+    "Contexto Cotización":      { "main": [[{ "node": "Consolidar Contexto",  "type": "main", "index": 0 }]] },
+
+    "Consolidar Contexto":           { "main": [[{ "node": "Recuperar Historial Redis",    "type": "main", "index": 0 }]] },
+    "Recuperar Historial Redis":      { "main": [[{ "node": "Preparar Prompt con Historial","type": "main", "index": 0 }]] },
+    "Preparar Prompt con Historial":  { "main": [[{ "node": "Agente IA",                   "type": "main", "index": 0 }]] },
+    "Agente IA":                      { "main": [[{ "node": "Actualizar Historial",         "type": "main", "index": 0 }]] },
+    "Actualizar Historial":           { "main": [[{ "node": "Guardar Historial Redis",      "type": "main", "index": 0 }]] },
+    "Guardar Historial Redis":        { "main": [[{ "node": "Switch Canal Respuesta",       "type": "main", "index": 0 }]] },
+
     "Switch Canal Respuesta": {
       "main": [
         [{ "node": "Enviar WhatsApp (YCloud)", "type": "main", "index": 0 }],
@@ -306,23 +516,29 @@
   "staticData": null,
   "tags": ["juare-tires", "chatbot", "black-sheep"],
 
-  "_credenciales_a_crear": {
-    "Postgres":      "Apunta a jaure_jaure-db:5432 / db: jaure / user: Jaure",
-    "OpenAI":        "API key de OpenAI",
-    "Google Sheets": "OAuth2 — cuenta Google con acceso al Sheet de inventario",
-    "Variables n8n": {
-      "YCLOUD_API_KEY":  "API key de YCloud",
-      "META_PAGE_TOKEN": "Token de página de Facebook (para Messenger)"
-    }
+  "_credenciales_a_crear_en_n8n": {
+    "Postgres (jaure)": "Host: jaure_jaure-db | Puerto: 5432 | BD: jaure | User: Jaure | Pass: Jaure123@@",
+    "OpenAI":           "API key de OpenAI — usada para Agente IA, Whisper y Vision",
+    "Google Sheets":    "OAuth2 — cuenta Google con acceso al Sheet de inventario",
+    "Redis":            "Host y puerto de tu instancia Redis en Easypanel"
+  },
+
+  "_variables_n8n": {
+    "YCLOUD_API_KEY":  "API key de YCloud (Settings → Variables en n8n)",
+    "META_PAGE_TOKEN": "Token de página de Facebook para Messenger"
   },
 
   "_tokens_a_reemplazar": {
-    "{{N8N_POSTGRES_CREDENTIAL_ID}}":   "ID de la credencial Postgres en n8n",
-    "{{N8N_POSTGRES_CREDENTIAL_NAME}}": "Nombre de la credencial Postgres",
-    "{{N8N_OPENAI_CREDENTIAL_ID}}":     "ID de la credencial OpenAI",
-    "{{N8N_OPENAI_CREDENTIAL_NAME}}":   "Nombre de la credencial OpenAI",
-    "{{N8N_GOOGLE_CREDENTIAL_ID}}":     "ID de la credencial Google Sheets OAuth2",
-    "{{N8N_GOOGLE_CREDENTIAL_NAME}}":   "Nombre de la credencial Google Sheets",
-    "{{GOOGLE_SHEETS_SPREADSHEET_ID}}": "ID del Google Sheet de inventario (en la URL)"
-  }
+    "{{N8N_OPENAI_CREDENTIAL_ID}}":   "ID de la credencial OpenAI en n8n",
+    "{{N8N_OPENAI_CREDENTIAL_NAME}}": "Nombre de la credencial OpenAI",
+    "{{N8N_POSTGRES_CREDENTIAL_ID}}": "ID de la credencial Postgres",
+    "{{N8N_POSTGRES_CREDENTIAL_NAME}}":"Nombre de la credencial Postgres",
+    "{{N8N_GOOGLE_CREDENTIAL_ID}}":   "ID de la credencial Google Sheets OAuth2",
+    "{{N8N_GOOGLE_CREDENTIAL_NAME}}": "Nombre de la credencial Google Sheets",
+    "{{N8N_REDIS_CREDENTIAL_ID}}":    "ID de la credencial Redis",
+    "{{N8N_REDIS_CREDENTIAL_NAME}}":  "Nombre de la credencial Redis",
+    "{{GOOGLE_SHEETS_SPREADSHEET_ID}}":"ID del Google Sheet (en la URL del sheet)"
+  },
+
+  "_flujo_resumido": "Webhooks (4 canales) → Normalizar Canal → Clasificar Tipo Mensaje → [texto|audio→Whisper|imagen→GPT-4o Vision] → Clasificar Intención → Switch [stock→GoogleSheets | cotizacion→PostgreSQL solicitudes | general] → Consolidar Contexto → Redis GET historial → Preparar Prompt → Agente IA (gpt-4o-mini) → Actualizar Historial → Redis SET → Switch Canal → [WhatsApp YCloud | Messenger | Webchat/Form]"
 }
