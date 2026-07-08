@@ -14,6 +14,10 @@ export function query<T extends object = object>(text: string, params?: unknown[
 }
 
 export const CRM_TABLES = {
+  solicitudes: {
+    table: "solicitudes",
+    label: "Solicitudes",
+  },
   contactos: {
     table: "contactos",
     label: "Contactos",

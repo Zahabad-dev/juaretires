@@ -51,6 +51,23 @@ CREATE TABLE IF NOT EXISTS faq (
   activo    BOOLEAN NOT NULL DEFAULT true
 );
 
+-- ---- Solicitudes de cotización ----
+CREATE TABLE IF NOT EXISTS solicitudes (
+  id              SERIAL PRIMARY KEY,
+  telefono        TEXT NOT NULL,
+  nombre          TEXT,
+  canal           TEXT DEFAULT 'whatsapp',
+  productos       TEXT,
+  estado          TEXT NOT NULL DEFAULT 'Nuevo',
+  prioridad       TEXT NOT NULL DEFAULT 'MEDIA',
+  bot_bloqueado   BOOLEAN NOT NULL DEFAULT false,
+  notas           TEXT,
+  creado_en       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  actualizado     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_solicitudes_telefono ON solicitudes(telefono);
+
 -- ---- Usuario de solo lectura para el CRM ----
 -- CREATE USER crm_readonly WITH PASSWORD 'CAMBIAR_PASSWORD';
 -- GRANT SELECT ON ALL TABLES IN SCHEMA public TO crm_readonly;
