@@ -1,18 +1,22 @@
 @import "tailwindcss";
 
 /* ============================================================
-   BRAND TOKENS — Juare Tires
+   BRAND TOKENS — JAURE Ingeniería Automotriz
+   Fuente: BRANDBOOK JAURE 2026
+   Azul Eléctrico #0033CC · Grafito Profundo #1A1D22
+   Plata Metálico #BFC3C8 · Blanco Técnico #FFFFFF
    ============================================================ */
 :root {
-  --color-primary:   #1d56d4;   /* azul principal */
-  --color-accent:    #4d8fff;   /* azul claro / hover */
-  --color-bg:        #040c1a;   /* fondo oscuro navy */
-  --color-surface:   #071526;   /* cards / panels */
-  --color-surface2:  #0a1f3a;   /* surface secundario */
-  --color-text:      #eef2ff;   /* texto principal */
-  --color-muted:     #8fa3c8;   /* texto secundario */
+  --color-primary:   #0033CC;   /* Azul Eléctrico JAURE — Pantone 286C */
+  --color-accent:    #4D79FF;   /* azul legible sobre fondos oscuros */
+  --color-bg:        #0B0D11;   /* fondo profundo */
+  --color-surface:   #1A1D22;   /* Grafito Profundo */
+  --color-surface2:  #14171B;   /* surface intermedio */
+  --color-silver:    #BFC3C8;   /* Plata Metálico */
+  --color-text:      #FFFFFF;   /* Blanco Técnico */
+  --color-muted:     #9BA1A8;   /* plata atenuada para cuerpo */
   --color-green:     #25d366;   /* WhatsApp — no cambiar */
-  --color-border:    rgba(77,143,255,0.12);
+  --color-border:    rgba(191, 195, 200, 0.14);
 
   --background: var(--color-bg);
   --foreground: var(--color-text);
@@ -26,6 +30,7 @@
   --color-brand-bg:        var(--color-bg);
   --color-brand-surface:   var(--color-surface);
   --color-brand-surface2:  var(--color-surface2);
+  --color-brand-silver:    var(--color-silver);
   --color-brand-text:      var(--color-text);
   --color-brand-muted:     var(--color-muted);
   --color-brand-green:     var(--color-green);
@@ -40,25 +45,44 @@ body {
   font-family: var(--font-body), Arial, Helvetica, sans-serif;
 }
 
+/* Tipografía corporativa: Montserrat para titulares */
 h1, h2, h3, h4, .font-heading {
   font-family: var(--font-heading), sans-serif;
-  letter-spacing: 0.04em;
   text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
-/* Placeholder de fotografía */
-.photo-placeholder {
-  background:
-    linear-gradient(135deg, #071526 0%, #0a1f3a 100%);
-  border: 1.5px dashed rgba(77,143,255,0.25);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  color: rgba(77,143,255,0.5);
-  font-size: 0.75rem;
-  letter-spacing: 0.1em;
+/* ── Sistema gráfico JAURE ── */
+
+/* 01 Línea principal — acento horizontal azul */
+.brand-line {
+  height: 2px;
+  width: 56px;
+  background: var(--color-primary);
+}
+
+/* 03 Recurso angular — corte recto en botones/elementos */
+.angular {
+  clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+}
+
+/* 04 Patrón de líneas finas — textura sutil */
+.line-pattern {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(191, 195, 200, 0.05) 0px,
+    rgba(191, 195, 200, 0.05) 1px,
+    transparent 1px,
+    transparent 9px
+  );
+}
+
+/* Kicker — etiqueta de sección estilo brandbook */
+.kicker {
+  font-family: var(--font-heading), sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.42em;
   text-transform: uppercase;
-  font-family: var(--font-body), sans-serif;
+  color: var(--color-accent);
 }
