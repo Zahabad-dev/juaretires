@@ -1,0 +1,2428 @@
+{
+ "name": "JAUREFLOW — Postgres",
+ "nodes": [
+  {
+   "parameters": {
+    "model": {
+     "__rl": true,
+     "value": "gpt-4o-mini",
+     "mode": "list",
+     "cachedResultName": "gpt-4o-mini"
+    },
+    "options": {}
+   },
+   "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+   "typeVersion": 1.2,
+   "position": [
+    15280,
+    7888
+   ],
+   "id": "7c5fffef-40ae-4e2e-8e8c-8124cd198e2e",
+   "name": "OpenAI Chat Model",
+   "credentials": {
+    "openAiApi": {
+     "id": "REEMPLAZAR",
+     "name": "JAURE OpenAI"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "operation": "push",
+    "list": "={{ $json.Telefono }}",
+    "messageData": "={{ JSON.stringify({ message: $json.Mensaje, sessionID: $json['ID mensaje'], date_time: $now.toISO() }) }}",
+    "tail": true
+   },
+   "type": "n8n-nodes-base.redis",
+   "typeVersion": 1,
+   "position": [
+    14000,
+    7632
+   ],
+   "id": "96a0c778-1522-4826-9edd-2de6534bb222",
+   "name": "Redis Push",
+   "credentials": {
+    "redis": {
+     "id": "REEMPLAZAR",
+     "name": "JAURE Redis"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "operation": "get",
+    "propertyName": "Mensajes",
+    "key": "={{ $('Edit Fields1').first().json.Telefono }}",
+    "options": {}
+   },
+   "type": "n8n-nodes-base.redis",
+   "typeVersion": 1,
+   "position": [
+    14240,
+    7632
+   ],
+   "id": "f95410b3-9074-489a-b851-4c17074da91a",
+   "name": "Redis Recoger",
+   "credentials": {
+    "redis": {
+     "id": "REEMPLAZAR",
+     "name": "JAURE Redis"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "rules": {
+     "values": [
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": true,
+         "leftValue": "",
+         "typeValidation": "strict",
+         "version": 2
+        },
+        "conditions": [
+         {
+          "leftValue": "={{ JSON.parse($json.Mensajes.filter(m => m.trim().startsWith('{')).slice(-1)[0].split('||')[0].trim()).sessionID }}",
+          "rightValue": "={{ $('Edit Fields1').first().json['ID mensaje'] }}",
+          "operator": {
+           "type": "string",
+           "operation": "notEquals"
+          },
+          "id": "sw3-cond-ignoran-001"
+         }
+        ],
+        "combinator": "and"
+       },
+       "renameOutput": true,
+       "outputKey": "Ignoran"
+      },
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": true,
+         "leftValue": "",
+         "typeValidation": "strict",
+         "version": 2
+        },
+        "conditions": [
+         {
+          "id": "sw3-cond-continuamos-002",
+          "leftValue": "={{ DateTime.fromISO(JSON.parse($json.Mensajes.filter(m => m.trim().startsWith('{')).slice(-1)[0].split('||')[0].trim()).date_time) }}",
+          "rightValue": "={{ $now.minus(7, 'seconds').toLocal() }}",
+          "operator": {
+           "type": "dateTime",
+           "operation": "before"
+          }
+         }
+        ],
+        "combinator": "and"
+       },
+       "renameOutput": true,
+       "outputKey": "Continuamos"
+      }
+     ]
+    },
+    "options": {
+     "fallbackOutput": "extra",
+     "renameFallbackOutput": "Esperar"
+    }
+   },
+   "type": "n8n-nodes-base.switch",
+   "typeVersion": 3.2,
+   "position": [
+    14464,
+    7616
+   ],
+   "id": "4e5ea77e-46ee-4a28-bd31-e880c8cf9b7b",
+   "name": "Switch1"
+  },
+  {
+   "parameters": {},
+   "type": "n8n-nodes-base.noOp",
+   "typeVersion": 1,
+   "position": [
+    14576,
+    7472
+   ],
+   "id": "ab83fc68-a95b-47be-978b-22a8cbe293bb",
+   "name": "Ignorar"
+  },
+  {
+   "parameters": {
+    "operation": "delete",
+    "key": "={{ $('Edit Fields1').first().json.Telefono }}"
+   },
+   "type": "n8n-nodes-base.redis",
+   "typeVersion": 1,
+   "position": [
+    14688,
+    7632
+   ],
+   "id": "5693caf1-bcda-4f6d-a4db-9f6736fa1876",
+   "name": "Redis Delete",
+   "credentials": {
+    "redis": {
+     "id": "REEMPLAZAR",
+     "name": "JAURE Redis"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "amount": 7
+   },
+   "type": "n8n-nodes-base.wait",
+   "typeVersion": 1.1,
+   "position": [
+    14368,
+    7872
+   ],
+   "id": "4d5b4dc8-98c2-442f-8b72-022ce176e374",
+   "name": "Wait Redis",
+   "webhookId": "a6b6c6d6-e6f6-6666-a6b6-c6d6e6f66666"
+  },
+  {
+   "parameters": {
+    "jsCode": "// ── COMBINAR MENSAJES (Buffer Redis) ─────────────────────────────\nconst lista = $('Redis Recoger').first().json.Mensajes;\nconst arr = Array.isArray(lista) ? lista : (lista ? [lista] : []);\n\nconst mensajeCombinado = arr.length > 0\n  ? arr\n      .filter(m => m && m.trim().startsWith('{'))\n      .map(m => {\n        try { return JSON.parse(m.split('||')[0].trim()).message; }\n        catch(e) { return m; }\n      })\n      .filter(Boolean)\n      .join('\\n')\n  : $('Edit Fields1').first().json.Mensaje;\n\nreturn [{ json: {\n  Nombre:        $('Edit Fields1').first().json.Nombre,\n  Telefono:      $('Edit Fields1').first().json.Telefono,\n  NumeroNegocio: $('Edit Fields1').first().json.NumeroNegocio,\n  Mensaje:       mensajeCombinado\n} }];"
+   },
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    14848,
+    7632
+   ],
+   "id": "11dedce3-a166-4f44-81ca-5edb33ba2016",
+   "name": "Combinar Mensajes"
+  },
+  {
+   "parameters": {
+    "httpMethod": "POST",
+    "path": "jaure-entrantes",
+    "options": {}
+   },
+   "type": "n8n-nodes-base.webhook",
+   "typeVersion": 2.1,
+   "position": [
+    12288,
+    7184
+   ],
+   "id": "5bfab053-1eb6-49b6-9178-54b8701790ed",
+   "name": "Webhook1",
+   "webhookId": "jaure-entrantes-001"
+  },
+  {
+   "parameters": {
+    "assignments": {
+     "assignments": [
+      {
+       "id": "2537904a-f1c1-497f-88c4-46f5c98c9822",
+       "name": "Nombre",
+       "value": "={{ $json.body.whatsappInboundMessage.customerProfile.name }}",
+       "type": "string"
+      },
+      {
+       "id": "7e253961-5fb3-458a-9101-d0b595aa7ce5",
+       "name": "Telefono",
+       "value": "={{ $json.body.whatsappInboundMessage.from }}",
+       "type": "string"
+      },
+      {
+       "id": "d2364738-f295-473f-ba9c-f2d7b033a4fd",
+       "name": "Mensaje",
+       "value": "={{ $json.body.whatsappInboundMessage.text.body }}",
+       "type": "string"
+      },
+      {
+       "id": "500f9954-30c1-4303-8f26-93c67d975904",
+       "name": "ID mensaje",
+       "value": "={{ $json.body.whatsappInboundMessage.wamid }}",
+       "type": "string"
+      },
+      {
+       "id": "f157374f-b8b6-4493-8090-b8297489f864",
+       "name": "Tipo de mensaje",
+       "value": "={{ $json.body.whatsappInboundMessage.type }}",
+       "type": "string"
+      },
+      {
+       "id": "a0b1c2d3-e4f5-6789-abcd-ef0123456789",
+       "name": "NumeroNegocio",
+       "value": "={{ $json.body.whatsappInboundMessage.to }}",
+       "type": "string"
+      }
+     ]
+    },
+    "options": {}
+   },
+   "type": "n8n-nodes-base.set",
+   "typeVersion": 3.4,
+   "position": [
+    12496,
+    7184
+   ],
+   "id": "7e60bc51-1516-43f8-aa40-bcc6a2360385",
+   "name": "Edit Fields1"
+  },
+  {
+   "parameters": {
+    "resource": "sheet",
+    "operation": "read",
+    "documentId": {
+     "__rl": true,
+     "value": "{{GOOGLE_SHEET_ID}}",
+     "mode": "id"
+    },
+    "sheetName": {
+     "__rl": true,
+     "value": "{{NOMBRE_PESTANA_INVENTARIO}}",
+     "mode": "name"
+    },
+    "options": {}
+   },
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.5,
+   "position": [
+    15120,
+    7632
+   ],
+   "id": "d6f4e94c-e13a-4f3b-8e05-ac91035fd120",
+   "name": "Leer Inventario Sheets",
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "REEMPLAZAR",
+     "name": "JAURE Google Sheets"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "jsCode": "const filas = $input.all();\nif (!filas.length) {\n  return [{ json: { inventarioFormateado: 'Sin datos de inventario disponibles en este momento.', total: 0 } }];\n}\nconst texto = filas.map((f) => {\n  const r = f.json;\n  const partes = Object.entries(r)\n    .filter(([k, v]) => v !== null && v !== undefined && String(v).trim() !== '' && !k.startsWith('row_'))\n    .map(([k, v]) => k + ': ' + v);\n  return '\\u2022 ' + partes.join(' | ');\n}).join('\\n');\nreturn [{ json: { inventarioFormateado: texto, total: filas.length } }];"
+   },
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    15312,
+    7632
+   ],
+   "id": "562ed082-c02e-4f12-bc6a-b118e27aa660",
+   "name": "Formatear Inventario"
+  },
+  {
+   "parameters": {
+    "sessionIdType": "customKey",
+    "sessionKey": "={{ $('Combinar Mensajes').first().json.Telefono }}",
+    "contextWindowLength": 10
+   },
+   "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+   "typeVersion": 1.3,
+   "position": [
+    15552,
+    7856
+   ],
+   "id": "d34874ee-240f-43ce-8920-c6c6211e1a8d",
+   "name": "Simple Memory1"
+  },
+  {
+   "parameters": {
+    "name": "consultar_faq",
+    "description": "Consulta las preguntas frecuentes (FAQ) de JAURE Ingenieria Automotriz. Usala cuando el cliente pregunte sobre horarios, ubicacion, formas de pago, garantias, politicas o cualquier duda general.",
+    "jsCode": "const response = await this.helpers.httpRequest({\n  method: \"GET\",\n  url: \"https://jaureautomotriz.com/api/bot/faq\",\n  returnFullResponse: false,\n});\nreturn JSON.stringify(response);"
+   },
+   "type": "@n8n/n8n-nodes-langchain.toolCode",
+   "typeVersion": 1.1,
+   "position": [
+    15728,
+    7856
+   ],
+   "id": "7cfd7d2c-9cef-4db5-8fa3-4d6ec1389d89",
+   "name": "consultar_faq1"
+  },
+  {
+   "parameters": {
+    "name": "registrar_ticket",
+    "description": "Registra o actualiza la solicitud del cliente en la base de datos. Úsala siempre que obtengas datos relevantes: nombre, intención de compra, motivo de consulta o estado. El campo numero_whatsapp es obligatorio.",
+    "jsCode": "const numero = $fromAI('numero_whatsapp', 'Numero de WhatsApp del cliente con codigo de pais', 'string');\nconst nombre = $fromAI('nombre_cliente', 'Nombre del cliente si fue mencionado', 'string') || '';\nconst estado = $fromAI('estado', 'Estado del ticket: Nuevo, Activo, Escalado, Atendido', 'string') || 'Nuevo';\nconst intencion = $fromAI('intencion_compra', 'true si mostro intencion de compra', 'boolean') || false;\nconst descripcion = $fromAI('descripcion', 'Descripcion de la consulta: medida de llanta, vehiculo, servicio solicitado', 'string') || '';\nconst ultimoMensaje = $fromAI('ultimo_mensaje', 'Texto del ultimo mensaje del cliente', 'string') || '';\n\nconst response = await this.helpers.httpRequest({\n  method: 'POST',\n  url: 'https://jaureautomotriz.com/api/bot/ticket',\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify({ telefono: numero, nombre: nombre, estado, intencion_compra: intencion, descripcion, ultimo_mensaje: ultimoMensaje })\n});\nreturn JSON.stringify({ ok: true, id: response.id });"
+   },
+   "type": "@n8n/n8n-nodes-langchain.toolCode",
+   "typeVersion": 1.1,
+   "position": [
+    15872,
+    7856
+   ],
+   "id": "483a66cf-7e64-4c8c-b21a-5bf4cf2fc683",
+   "name": "registrar_ticket1"
+  },
+  {
+   "parameters": {
+    "jsCode": "// LIMPIAR TRAZA DE HERRAMIENTAS\nfunction stripUsedTools(text) {\n  let result = text;\n  let safety = 0;\n  while (result.includes('[Used tools:') && safety < 10) {\n    safety++;\n    const start = result.indexOf('[Used tools:');\n    if (start === -1) break;\n    let depth = 0, end = start;\n    for (let i = start; i < result.length; i++) {\n      const ch = result[i];\n      if (ch === '[' || ch === '{') depth++;\n      else if (ch === ']' || ch === '}') { depth--; if (depth === 0) { end = i + 1; break; } }\n    }\n    result = (result.slice(0, start) + result.slice(end)).trimStart();\n  }\n  return result.trim();\n}\n\nconst UMBRAL_PRESUPUESTO = 20000;\nconst VALOR_POR_PIEZA    = 2500;\nconst UMBRAL_PIEZAS      = 8;\n\nconst rawOutput     = $input.first().json.output || '';\nconst output        = stripUsedTools(rawOutput);\nconst clientMessage = $('Combinar Mensajes').first().json.Mensaje || '';\nconst waId          = $('Combinar Mensajes').first().json.Telefono;\nconst clientName    = $('Combinar Mensajes').first().json.Nombre || 'Cliente';\nconst numNegocio    = $('Combinar Mensajes').first().json.NumeroNegocio;\n\n// -- DETECTAR NUMERO DE PIEZAS/LLANTAS (cliente + bot) --\nfunction detectarPiezas(texto) {\n  let max = 0;\n  const patrones = [\n    /(necesito|ocupo|quiero|busco|son|para)\\s+(\\d+)\\s*(llantas?|piezas?|neum[aá]ticos?|rines?|juegos?)/gi,\n    /(\\d+)\\s*(llantas?|piezas?|neum[aá]ticos?|rines?)/gi,\n    /flotilla\\s+de\\s+(\\d+)/gi,\n    /(\\d+)\\s*(camionetas?|camiones?|autos?|coches?|veh[ií]culos?|unidades?)/gi,\n  ];\n  for (const p of patrones) {\n    const matches = [...texto.matchAll(p)];\n    for (const m of matches) {\n      const nums = m[0].match(/\\d+/g);\n      if (nums) {\n        const total = nums.reduce((s, n) => s + parseInt(n), 0);\n        if (total > max) max = total;\n      }\n    }\n  }\n  return max;\n}\n\nconst piezasCliente = detectarPiezas(clientMessage);\nconst piezasBot     = detectarPiezas(output);\nconst piezasDetectadas = Math.max(piezasCliente, piezasBot);\nconst presupuestoEstimadoGrupo = piezasDetectadas * VALOR_POR_PIEZA;\nconst grupoGrande = piezasDetectadas >= UMBRAL_PIEZAS;\n\n// -- INTENCION DE COMPRA --\nconst tieneMarkerCompra = output.includes('[INTENCION_COMPRA]');\nconst keywordsCompra = /\\b(quiero comprar|quiero apartar|me lo llevo|c[oó]mo pago|c[oó]mo aparto|cu[aá]nto (sale|cuesta|est[aá]|me queda|nos sale|salen|cuestan)|qu[eé] precio|hay disponibilidad|tienen disponible|est[aá] disponible|tienen en stock|manejan la medida|tienen la medida|meses sin intereses|pago con tarjeta|aceptan tarjeta|dan factura|ocupo factura|necesito factura|me cotizas|cotizaci[oó]n|quiero cotizar|me mandas info|m[aá]ndame info|env[ií]ame info|me interesa|s[ií] me interesa|quiero saber m[aá]s|d[aá]me m[aá]s info|cu[aá]ndo puedo ir|puedo ir hoy|a qu[eé] hora abren|hacen alineaci[oó]n|hacen balanceo|cambio de aceite|revisan frenos|amortiguadores|suspensi[oó]n|ponchadura|se me ponch[oó]|llanta ponchada|refacci[oó]n|medida \\d|r1[3-9]|r2[0-2]|\\d{3}\\/\\d{2})\\b/i;\nconst tieneKeywordCompra = keywordsCompra.test(clientMessage);\nconst intencionCompra = tieneMarkerCompra || tieneKeywordCompra;\n\n// -- PRESUPUESTO ALTO --\nconst tieneMarkerPresupuesto = output.includes('[PRESUPUESTO_ALTO]');\nlet isHighBudgetFromMessage = false;\n\nconst matchesMil = [...clientMessage.matchAll(/(\\d+[\\d,\\.]*)[\\s ]*(mil|k)\\b/gi)];\nfor (const m of matchesMil) {\n  const amount = parseFloat(m[1].replace(/[,]/g, '')) * 1000;\n  if (amount >= UMBRAL_PRESUPUESTO) { isHighBudgetFromMessage = true; break; }\n}\nif (!isHighBudgetFromMessage) {\n  const matchesMillon = [...clientMessage.matchAll(/(\\d+[\\d,\\.]*)[\\s ]*(millones?)/gi)];\n  for (const m of matchesMillon) {\n    const amount = parseFloat(m[1].replace(/[,]/g, '')) * 1000000;\n    if (amount >= UMBRAL_PRESUPUESTO) { isHighBudgetFromMessage = true; break; }\n  }\n}\nif (!isHighBudgetFromMessage) {\n  const matchesDirecto = [...clientMessage.matchAll(/[$]?([\\d]{1,3}(?:[,\\.][\\d]{3})+|[\\d]{5,})/g)];\n  for (const m of matchesDirecto) {\n    const amount = parseFloat(m[1].replace(/[,\\.]/g, '').replace(/\\.(\\d{2})$/, ''));\n    if (amount >= UMBRAL_PRESUPUESTO) { isHighBudgetFromMessage = true; break; }\n  }\n}\nconst keywordsFlotilla = /\\b(flotilla|flota|empresa|corporativo|mayoreo|medio mayoreo|camiones|tr[aá]iler|plataforma|reparto|log[ií]stica|transporte)\\b/i;\nconst presupuestoAlto = tieneMarkerPresupuesto || isHighBudgetFromMessage || keywordsFlotilla.test(clientMessage) || grupoGrande;\n\n// -- QUIERE HABLAR CON ASESOR --\nconst tieneMarkerAsesor = output.includes('[QUIERE_ASESOR]');\nconst keywordsAsesor = /\\b(quiero hablar con (un |una )?(asesor|asesora|persona|humano|alguien)|hablar con (un |una )?(asesor|asesora|persona|alguien|humano)|me comunicas con|me comunica con|p[aá]same con|necesito (un |una )?(asesor|asesora|persona|humano)|quiero (un |una )?(asesor|asesora|agente)|asesor(a)? por favor|agente por favor|persona real|alguien de verdad|hablar con alguien)\\b/i;\nconst quiereAsesor = tieneMarkerAsesor || keywordsAsesor.test(clientMessage);\n\n// -- CANSADO / FRUSTRADO DEL BOT --\nconst tieneMarkerCansado = output.includes('[CANSADO_BOT]');\nconst keywordsCansado = /\\b(no me (est[aá]s |eres )?(ayudando|sirviendo|entendiendo|resolviendo)|no entiendes|no me entiendes|no sirves|eres (un |)bot|esto no (sirve|funciona|me ayuda)|no funciona(s)?|in[uú]til|no (me )resuelves|ya me cans[eé]|me est[aá]s cansando|me desesper[eé]|harto del bot|harta del bot|est[aá]s en loop|sigues repitiendo|siempre lo mismo|no contestas lo que pregunto)\\b/i;\nconst cansadoBot = tieneMarkerCansado || keywordsCansado.test(clientMessage);\n\n// -- BOT RESPONDIO CON FRASE DE ESCALACION --\nconst frasesEscalacionBot = /(asesor(a)? (se pondr[aá]|te pondr[aá]|pondr[aá]) en contacto|asesor(a)? te (contactar[aá]n?|atiende|atender[aá]n?|ayudar[aá]n?|llamar[aá]n?|enviar[aá]n?|env[ií]e)|te contactar[aá]n?|nos pondremos en contacto|nos comunicaremos contigo|un(a)? (asesora|asesor) te (llamar[aá]n?|contactar[aá]n?|atender[aá]n?|enviar[aá]n?|env[ií]e|aparta)|pasar(le|te|los)? (tus |los |la )?(datos|informaci[oó]n|solicitud)|voy a pasar(te|los|le)?|te dar[aá]n? seguimiento|coordinar(emos)? (una )?(llamada|cita|visita)|asesor(a)? personal te|nuestro equipo te (contactar[aá]|llamar[aá]|atender[aá])|para (confirmar|cerrar|apartar) (los detalles|tu compra|tus piezas|tu pedido))/i;\nconst botEscalo = frasesEscalacionBot.test(output);\n\n// -- RESULTADO COMBINADO --\nconst necesitaAsesor = intencionCompra || presupuestoAlto || quiereAsesor || cansadoBot || botEscalo;\n\nconst motivo = presupuestoAlto\n               ? (grupoGrande ? 'FLOTILLA/MAYOREO (' + piezasDetectadas + ' piezas ~ $' + presupuestoEstimadoGrupo.toLocaleString() + ')' : 'PRESUPUESTO ALTO')\n             : intencionCompra ? 'INTENCION DE COMPRA'\n             : quiereAsesor    ? 'QUIERE HABLAR CON ASESOR'\n             : cansadoBot      ? 'CANSADO DEL BOT'\n             : botEscalo       ? 'BOT ESCALO EN RESPUESTA'\n             : '';\n\n// -- ROTACION 3 ASESORES (round-robin a2 -> a3 -> a4) --\nconst staticData = $getWorkflowStaticData('global');\nconst CICLO = ['a2', 'a3', 'a4'];\nconst turnoActual = staticData.turno_asesor || 'a2';\nif ((intencionCompra || quiereAsesor || cansadoBot || botEscalo) && !presupuestoAlto) {\n  const idx = CICLO.indexOf(turnoActual);\n  staticData.turno_asesor = CICLO[(idx + 1) % CICLO.length];\n}\n\n// -- LIMPIAR MARCADORES --\nconst mensajeLimpio = output\n  .replace('[INTENCION_COMPRA]', '')\n  .replace('[PRESUPUESTO_ALTO]', '')\n  .replace('[QUIERE_ASESOR]', '')\n  .replace('[CANSADO_BOT]', '')\n  .trim();\n\nreturn [{\n  json: {\n    output:                mensajeLimpio,\n    mensaje_limpio:        mensajeLimpio,\n    necesita_asesor:       necesitaAsesor,\n    intencion_compra:      intencionCompra,\n    presupuesto_alto:      presupuestoAlto,\n    quiere_asesor:         quiereAsesor,\n    cansado_bot:           cansadoBot,\n    bot_escalo:            botEscalo,\n    grupo_grande:          grupoGrande,\n    piezas_detectadas:     piezasDetectadas,\n    presupuesto_estimado:  presupuestoEstimadoGrupo,\n    motivo_alerta:         motivo,\n    turno_asesor:          turnoActual,\n    wa_id:                 waId,\n    cliente_nombre:        clientName,\n    cliente_mensaje:       clientMessage,\n    numero_negocio:        numNegocio\n  }\n}];"
+   },
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    15920,
+    7600
+   ],
+   "id": "1939f0bb-10fe-40ca-95b0-80e8892f8992",
+   "name": "Detectar Alerta Asesor1"
+  },
+  {
+   "parameters": {
+    "url": "https://api.ycloud.com/v2/contact/contacts",
+    "sendQuery": true,
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "filter.phoneNumber",
+       "value": "={{ $('Edit Fields1').first().json.Telefono }}"
+      },
+      {
+       "name": "includeTotal",
+       "value": "true"
+      }
+     ]
+    },
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "X-API-Key",
+       "value": "{{YCLOUD_API_KEY_JAURE}}"
+      }
+     ]
+    },
+    "options": {}
+   },
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    12896,
+    6240
+   ],
+   "id": "b1b63c15-e4fd-4cc4-a46e-e243e128e6ae",
+   "name": "Consultar Contactos YCloud",
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "jsCode": "\n// ── VERIFICAR TAG \"conocido\" en YCloud ─────────────────────────\nconst TAG_BUSCAR = 'conocido';\nconst base       = $('Edit Fields1').first().json;\nlet   esConocido = false;\n\ntry {\n  console.log('API response:', JSON.stringify($json).substring(0, 600));\n\n  const items = $json.items || $json.contacts || $json.data || [];\n\n  if (Array.isArray(items) && items.length > 0) {\n    for (const contacto of items) {\n      const tags = contacto.tags || contacto.tagIds || [];\n\n      console.log('Contacto:', contacto.phoneNumber,\n                  '| tags:', JSON.stringify(tags));\n\n      // YCloud puede devolver tags como:\n      //   [{id:\"xxx\", name:\"conocido\"}]  ← objetos con name\n      //   [\"id_abc\", \"id_def\"]           ← solo IDs (strings)\n      //   [{tagId:\"xxx\", tagName:\"...\"}] ← otro formato\n      const tieneTag = tags.some(t => {\n        if (typeof t === 'string') {\n          // Es un ID, no podemos comparar por nombre\n          // Si SOLO hay strings, asumimos que cualquier tag = conocido\n          return true;\n        }\n        // Es objeto: buscar por nombre\n        const nombre = (t.name || t.tagName || t.label || '').toLowerCase();\n        return nombre.includes(TAG_BUSCAR.toLowerCase());\n      });\n\n      if (tieneTag) {\n        esConocido = true;\n        console.log('→ CONOCIDO (tiene tag \"' + TAG_BUSCAR + '\")');\n        break;\n      }\n    }\n  }\n\n  if (!esConocido) {\n    console.log('→ NUEVO LEAD (sin tag \"' + TAG_BUSCAR + '\") para:', base.Telefono);\n  }\n\n} catch(e) {\n  console.log('Error:', e.message, '→ tratar como nuevo lead');\n  esConocido = false;\n}\n\nreturn [{ json: { ...base, esConocido } }];\n"
+   },
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    13280,
+    6240
+   ],
+   "id": "c84788d6-a16a-4fcd-be71-f954b996009e",
+   "name": "Tiene Tag Conocido?"
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "strict",
+      "version": 1
+     },
+     "conditions": [
+      {
+       "leftValue": "={{ $json.esConocido }}",
+       "rightValue": true,
+       "operator": {
+        "type": "boolean",
+        "operation": "true"
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   },
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    13584,
+    6240
+   ],
+   "id": "daf3bd83-5cb1-4c90-8f7d-5d9c79795e7c",
+   "name": "Es Numero Conocido?"
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "strict",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "leftValue": "={{ $json.NumeroNegocio }}",
+       "rightValue": "{{NUMERO_JAURE}}",
+       "operator": {
+        "type": "string",
+        "operation": "contains"
+       },
+       "id": "e12c8bcf-c7c4-498d-bac1-71159def654f"
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   },
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    12768,
+    7184
+   ],
+   "id": "61a243b5-9c49-4748-97d3-9b9c6f885710",
+   "name": "IF Canal Receptor"
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "strict",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "id": "bb-cond-bloqueado-001",
+       "leftValue": "={{ $json.botBloqueado }}",
+       "rightValue": true,
+       "operator": {
+        "type": "boolean",
+        "operation": "true"
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   },
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    14096,
+    7296
+   ],
+   "id": "23edda25-f640-4075-acb3-47ea8f537f80",
+   "name": "Bot Bloqueado?"
+  },
+  {
+   "parameters": {},
+   "type": "n8n-nodes-base.noOp",
+   "typeVersion": 1,
+   "position": [
+    14320,
+    7280
+   ],
+   "id": "fbc9601f-8081-4be3-8d6c-aa1017e96c0e",
+   "name": "No Responder Bot"
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "=SELECT id, telefono, nombre, estado, prioridad, bot_bloqueado, asesor, fecha_pausa_bot, ultimo_mensaje FROM solicitudes WHERE telefono = '{{ $('Edit Fields1').first().json.Telefono.replace('+', '') }}' LIMIT 1",
+    "options": {}
+   },
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.5,
+   "position": [
+    13808,
+    7296
+   ],
+   "id": "74b9e111-57e6-4dcd-b062-1d6946868e27",
+   "name": "Leer Ticket Handoff",
+   "alwaysOutputData": true,
+   "credentials": {
+    "postgres": {
+     "id": "REEMPLAZAR",
+     "name": "JAURE Postgres"
+    }
+   },
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "jsCode": "const editFields = $('Edit Fields1').first().json;\nlet mensajeUpstream = '';\ntry { mensajeUpstream = $('Armar Mensaje Audio').first().json.Mensaje || ''; } catch(e) {}\ntry { if (!mensajeUpstream) mensajeUpstream = $('Armar Mensaje Imagen').first().json.Mensaje || ''; } catch(e) {}\nconst base = { ...editFields, Mensaje: mensajeUpstream || editFields.Mensaje || '' };\nconst items = $input.all();\nif (!items || items.length === 0) { return [{ json: { ...base, botBloqueado: false } }]; }\nconst ticket = items[0]?.json;\nif (!ticket || !ticket.telefono) { return [{ json: { ...base, botBloqueado: false } }]; }\nconst estado = String(ticket.estado || '').trim().toLowerCase();\nconst prioridad = String(ticket.prioridad || '').trim().toUpperCase();\nconst botPausado = ticket.bot_bloqueado === true;\nconst bloqueado = (estado === 'escalado') || (estado === 'escaladohumano') || (prioridad === 'ALTA') || botPausado;\nreturn [{ json: { ...base, botBloqueado: bloqueado } }];"
+   },
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    13968,
+    7296
+   ],
+   "id": "df8eebf1-ece3-48d8-b05c-c30ad7688802",
+   "name": "Verificar Handoff"
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "strict",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "id": "na-cond-001",
+       "leftValue": "={{ $('Detectar Alerta Asesor1').first().json.necesita_asesor }}",
+       "rightValue": true,
+       "operator": {
+        "type": "boolean",
+        "operation": "true"
+       }
+      }
+     ],
+     "combinator": "or"
+    },
+    "options": {}
+   },
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    16240,
+    7248
+   ],
+   "id": "3dd0c486-cf19-4c71-8b17-de6bc623e30c",
+   "name": "IF Necesita Asesor?"
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "=UPDATE solicitudes SET estado='Escalado', prioridad='ALTA', actualizado=NOW() WHERE telefono='{{ $('Edit Fields1').first().json.Telefono.replace('+', '') }}'",
+    "options": {}
+   },
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.5,
+   "position": [
+    16512,
+    7232
+   ],
+   "id": "51dad2bb-00da-4d44-bd43-265789c43b21",
+   "name": "Marcar Escalado Sheet",
+   "credentials": {
+    "postgres": {
+     "id": "REEMPLAZAR",
+     "name": "JAURE Postgres"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "fromEmail": "{{SMTP_FROM_EMAIL}}",
+    "toEmail": "{{PUSHOVER_GENERAL}}",
+    "subject": "=🚨 Lead: {{ $('Detectar Alerta Asesor1').first().json.motivo_alerta }} - {{ $('Detectar Alerta Asesor1').first().json.cliente_nombre || 'Sin nombre' }} | JAURE",
+    "html": "=<div style=\"font-family:Arial,sans-serif;max-width:600px;margin:0 auto;\">\n  <div style=\"background:#0033CC;padding:20px;border-radius:8px 8px 0 0;\">\n    <h2 style=\"color:#fff;margin:0;\">🔧 JAURE Ingeniería Automotriz — Cliente Requiere Atención</h2>\n  </div>\n\n  <div style=\"background:#f9f9f9;padding:20px;border-radius:0 0 8px 8px;border:1px solid #ddd;\">\n    <table style=\"width:100%;border-collapse:collapse;\">\n      \n      \n      <tr style=\"background:#e8f5e9;border-left:4px solid #43a047;\">\n        <td style=\"padding:12px;font-weight:bold;color:#2e7d32;\">📋 Contexto</td>\n        <td style=\"padding:12px;color:#222;font-size:14px;line-height:1.5;\">\n          {{ $('Generar Resumen').first().json.choices[0].message.content || 'Sin resumen disponible' }}\n        </td>\n      </tr>\n\n      <tr style=\"background:#f0f0f0;\">\n        <td style=\"padding:10px;font-weight:bold;color:#555;width:38%;\">👤 Nombre</td>\n        <td style=\"padding:10px;color:#222;\">\n          {{ $('Detectar Alerta Asesor1').first().json.cliente_nombre || '—' }}\n        </td>\n      </tr>\n\n      <tr>\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">📱 WhatsApp cliente</td>\n        <td style=\"padding:10px;color:#222;\">\n          <a href=\"https://wa.me/{{ $('Detectar Alerta Asesor1').first().json.wa_id }}\"\n             style=\"color:#25D366;font-weight:bold;text-decoration:none;\"\n             target=\"_blank\">\n             {{ $('Detectar Alerta Asesor1').first().json.wa_id }}\n          </a>\n        </td>\n      </tr>\n\n      <tr style=\"background:#f0f0f0;\">\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">🏢 Número receptor</td>\n        <td style=\"padding:10px;color:#222;\">\n          {{ $('Detectar Alerta Asesor1').first().json.numero_negocio }}\n        </td>\n      </tr>\n\n      <tr>\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">💬 Último mensaje</td>\n        <td style=\"padding:10px;color:#222;\">\n          {{ $('Detectar Alerta Asesor1').first().json.cliente_mensaje }}\n        </td>\n      </tr>\n\n      <tr style=\"background:#f0f0f0;\">\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">🤖 Respuesta del asistente</td>\n        <td style=\"padding:10px;color:#222;\">\n          {{ $('Detectar Alerta Asesor1').first().json.mensaje_limpio }}\n        </td>\n      </tr>\n\n      <tr>\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">📅 Fecha y hora</td>\n        <td style=\"padding:10px;color:#222;\">\n          {{ DateTime.now().setZone('America/Mexico_City').toFormat('dd/MM/yyyy HH:mm') }} (Hora México)\n        </td>\n      </tr>\n\n    </table>\n\n    <div style=\"margin-top:20px;padding:15px;background:#d1ecf1;border-left:4px solid #17a2b8;border-radius:4px;\">\n      <strong>✈️ Atención requerida:</strong><br>\n      Este cliente necesita seguimiento por parte de un asesor de JAURE Agency.\n      El asistente virtual ha detectado intención de compra o requiere atención personalizada.\n      Contáctalo por WhatsApp lo antes posible.\n    </div>\n  </div>\n\n  <p style=\"font-size:11px;color:#aaa;text-align:center;margin-top:10px;\">\n    Notificación automática — JAURE Agency · Tulancingo, Hidalgo\n  </p>\n</div>",
+    "options": {}
+   },
+   "type": "n8n-nodes-base.emailSend",
+   "typeVersion": 2.1,
+   "position": [
+    16720,
+    7232
+   ],
+   "id": "0bcb4a24-a026-4b95-99d2-57c7490f55d4",
+   "name": "Notificar Email Lead",
+   "webhookId": "1c94bd75-e2a5-4234-835f-0e1cc3c0838e",
+   "credentials": {
+    "smtp": {
+     "id": "REEMPLAZAR",
+     "name": "JAURE SMTP"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "strict",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "id": "bs-vip-cond-001",
+       "leftValue": "={{ $('Detectar Alerta Asesor1').first().json.presupuesto_alto }}",
+       "rightValue": true,
+       "operator": {
+        "type": "boolean",
+        "operation": "true"
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   },
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    16960,
+    7232
+   ],
+   "id": "d7fe772e-4dcf-4624-b155-7d8ab32f3203",
+   "name": "IF Presupuesto Alto? BS"
+  },
+  {
+   "parameters": {
+    "rules": {
+     "values": [
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": true,
+         "leftValue": "",
+         "typeValidation": "strict",
+         "version": 2
+        },
+        "conditions": [
+         {
+          "id": "turno-a2",
+          "leftValue": "={{ $('Detectar Alerta Asesor1').first().json.turno_asesor }}",
+          "rightValue": "a2",
+          "operator": {
+           "type": "string",
+           "operation": "equals"
+          }
+         }
+        ],
+        "combinator": "and"
+       },
+       "renameOutput": true,
+       "outputKey": "asesor2"
+      },
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": true,
+         "leftValue": "",
+         "typeValidation": "strict",
+         "version": 2
+        },
+        "conditions": [
+         {
+          "id": "turno-a3",
+          "leftValue": "={{ $('Detectar Alerta Asesor1').first().json.turno_asesor }}",
+          "rightValue": "a3",
+          "operator": {
+           "type": "string",
+           "operation": "equals"
+          }
+         }
+        ],
+        "combinator": "and"
+       },
+       "renameOutput": true,
+       "outputKey": "asesor3"
+      }
+     ]
+    },
+    "options": {
+     "fallbackOutput": "extra",
+     "renameFallbackOutput": "asesor4"
+    }
+   },
+   "type": "n8n-nodes-base.switch",
+   "typeVersion": 3.3,
+   "position": [
+    17200,
+    7408
+   ],
+   "id": "9906c56e-4a00-4453-b970-165c16b56c32",
+   "name": "Turno Asesor?"
+  },
+  {
+   "parameters": {
+    "fromEmail": "{{SMTP_FROM_EMAIL}}",
+    "toEmail": "{{PUSHOVER_ASESOR1}}",
+    "subject": "=💎 VIP/Flotilla: {{ $('Detectar Alerta Asesor1').first().json.motivo_alerta }} - {{ $('Detectar Alerta Asesor1').first().json.cliente_nombre || 'Sin nombre' }} | JAURE",
+    "html": "=<div style=\"font-family:Arial,sans-serif;max-width:600px;margin:0 auto;\">\n  <div style=\"background:#0033CC;padding:20px;border-radius:8px 8px 0 0;\">\n    <h2 style=\"color:#fff;margin:0;\">🔧 JAURE Ingeniería Automotriz — Cliente Requiere Atención</h2>\n  </div>\n\n  <div style=\"background:#f9f9f9;padding:20px;border-radius:0 0 8px 8px;border:1px solid #ddd;\">\n    <table style=\"width:100%;border-collapse:collapse;\">\n      \n      \n      <tr style=\"background:#fff3cd;\">\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">💰 Motivo VIP</td>\n        <td style=\"padding:10px;color:#222;font-weight:bold;\">\n          {{ $('Detectar Alerta Asesor1').first().json.motivo_alerta }}\n        </td>\n      </tr>\n\n      \n      <tr style=\"background:#e8f5e9;border-left:4px solid #43a047;\">\n        <td style=\"padding:12px;font-weight:bold;color:#2e7d32;\">📋 Contexto</td>\n        <td style=\"padding:12px;color:#222;font-size:14px;line-height:1.5;\">\n          {{ $('Generar Resumen').first().json.choices[0].message.content || 'Sin resumen disponible' }}\n        </td>\n      </tr>\n\n      <tr style=\"background:#f0f0f0;\">\n        <td style=\"padding:10px;font-weight:bold;color:#555;width:38%;\">👤 Nombre</td>\n        <td style=\"padding:10px;color:#222;\">\n          {{ $('Detectar Alerta Asesor1').first().json.cliente_nombre || '—' }}\n        </td>\n      </tr>\n\n      <tr>\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">📱 WhatsApp cliente</td>\n        <td style=\"padding:10px;color:#222;\">\n          <a href=\"https://wa.me/{{ $('Detectar Alerta Asesor1').first().json.wa_id }}\"\n             style=\"color:#25D366;font-weight:bold;text-decoration:none;\"\n             target=\"_blank\">\n             {{ $('Detectar Alerta Asesor1').first().json.wa_id }}\n          </a>\n        </td>\n      </tr>\n\n      <tr style=\"background:#f0f0f0;\">\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">🏢 Número receptor</td>\n        <td style=\"padding:10px;color:#222;\">\n          {{ $('Detectar Alerta Asesor1').first().json.numero_negocio }}\n        </td>\n      </tr>\n\n      <tr>\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">💬 Último mensaje</td>\n        <td style=\"padding:10px;color:#222;\">\n          {{ $('Detectar Alerta Asesor1').first().json.cliente_mensaje }}\n        </td>\n      </tr>\n\n      <tr style=\"background:#f0f0f0;\">\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">🤖 Respuesta del asistente</td>\n        <td style=\"padding:10px;color:#222;\">\n          {{ $('Detectar Alerta Asesor1').first().json.mensaje_limpio }}\n        </td>\n      </tr>\n\n      <tr>\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">📅 Fecha y hora</td>\n        <td style=\"padding:10px;color:#222;\">\n          {{ DateTime.now().setZone('America/Mexico_City').toFormat('dd/MM/yyyy HH:mm') }} (Hora México)\n        </td>\n      </tr>\n\n    </table>\n\n    <div style=\"margin-top:20px;padding:15px;background:#d1ecf1;border-left:4px solid #17a2b8;border-radius:4px;\">\n      <strong>✈️ Atención requerida:</strong><br>\n      Este cliente necesita seguimiento por parte de un asesor de JAURE Agency.\n      El asistente virtual ha detectado intención de compra o requiere atención personalizada.\n      Contáctalo por WhatsApp lo antes posible.\n    </div>\n  </div>\n\n  <p style=\"font-size:11px;color:#aaa;text-align:center;margin-top:10px;\">\n    Notificación automática — JAURE Agency · Tulancingo, Hidalgo\n  </p>\n</div>",
+    "options": {}
+   },
+   "type": "n8n-nodes-base.emailSend",
+   "typeVersion": 2.1,
+   "position": [
+    17200,
+    7088
+   ],
+   "id": "a446c446-7748-4a0e-b6bc-c1bd9834009f",
+   "name": "PUSHOVER ASESOR VIP",
+   "webhookId": "c6160b9a-d8b0-4fbc-b6ef-01209334b5e0",
+   "credentials": {
+    "smtp": {
+     "id": "REEMPLAZAR",
+     "name": "JAURE SMTP"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "fromEmail": "{{SMTP_FROM_EMAIL}}",
+    "toEmail": "{{PUSHOVER_ASESOR2}}",
+    "subject": "=🔔 Lead: {{ $('Detectar Alerta Asesor1').first().json.motivo_alerta }} - {{ $('Detectar Alerta Asesor1').first().json.cliente_nombre || 'Sin nombre' }} | JAURE",
+    "html": "=<div style=\"font-family:Arial,sans-serif;max-width:600px;margin:0 auto;\">\n  <div style=\"background:#0033CC;padding:20px;border-radius:8px 8px 0 0;\">\n    <h2 style=\"color:#fff;margin:0;\">🔧 JAURE Ingeniería Automotriz — Cliente Requiere Atención</h2>\n  </div>\n\n  <div style=\"background:#f9f9f9;padding:20px;border-radius:0 0 8px 8px;border:1px solid #ddd;\">\n    <table style=\"width:100%;border-collapse:collapse;\">\n      \n      \n      <tr style=\"background:#e8f5e9;border-left:4px solid #43a047;\">\n        <td style=\"padding:12px;font-weight:bold;color:#2e7d32;\">📋 Contexto</td>\n        <td style=\"padding:12px;color:#222;font-size:14px;line-height:1.5;\">\n          {{ $('Generar Resumen').first().json.choices[0].message.content || 'Sin resumen disponible' }}\n        </td>\n      </tr>\n\n      <tr style=\"background:#f0f0f0;\">\n        <td style=\"padding:10px;font-weight:bold;color:#555;width:38%;\">👤 Nombre</td>\n        <td style=\"padding:10px;color:#222;\">\n          {{ $('Detectar Alerta Asesor1').first().json.cliente_nombre || '—' }}\n        </td>\n      </tr>\n\n      <tr>\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">📱 WhatsApp cliente</td>\n        <td style=\"padding:10px;color:#222;\">\n          <a href=\"https://wa.me/{{ $('Detectar Alerta Asesor1').first().json.wa_id }}\"\n             style=\"color:#25D366;font-weight:bold;text-decoration:none;\"\n             target=\"_blank\">\n             {{ $('Detectar Alerta Asesor1').first().json.wa_id }}\n          </a>\n        </td>\n      </tr>\n\n      <tr style=\"background:#f0f0f0;\">\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">🏢 Número receptor</td>\n        <td style=\"padding:10px;color:#222;\">\n          {{ $('Detectar Alerta Asesor1').first().json.numero_negocio }}\n        </td>\n      </tr>\n\n      <tr>\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">💬 Último mensaje</td>\n        <td style=\"padding:10px;color:#222;\">\n          {{ $('Detectar Alerta Asesor1').first().json.cliente_mensaje }}\n        </td>\n      </tr>\n\n      <tr style=\"background:#f0f0f0;\">\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">🤖 Respuesta del asistente</td>\n        <td style=\"padding:10px;color:#222;\">\n          {{ $('Detectar Alerta Asesor1').first().json.mensaje_limpio }}\n        </td>\n      </tr>\n\n      <tr>\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">📅 Fecha y hora</td>\n        <td style=\"padding:10px;color:#222;\">\n          {{ DateTime.now().setZone('America/Mexico_City').toFormat('dd/MM/yyyy HH:mm') }} (Hora México)\n        </td>\n      </tr>\n\n    </table>\n\n    <div style=\"margin-top:20px;padding:15px;background:#d1ecf1;border-left:4px solid #17a2b8;border-radius:4px;\">\n      <strong>✈️ Atención requerida:</strong><br>\n      Este cliente necesita seguimiento por parte de un asesor de JAURE Agency.\n      El asistente virtual ha detectado intención de compra o requiere atención personalizada.\n      Contáctalo por WhatsApp lo antes posible.\n    </div>\n  </div>\n\n  <p style=\"font-size:11px;color:#aaa;text-align:center;margin-top:10px;\">\n    Notificación automática — JAURE Agency · Tulancingo, Hidalgo\n  </p>\n</div>",
+    "options": {}
+   },
+   "type": "n8n-nodes-base.emailSend",
+   "typeVersion": 2.1,
+   "position": [
+    17440,
+    7328
+   ],
+   "id": "56172c76-36f4-465a-b4b3-85bdcaa365ce",
+   "name": "PUSHOVER ASESOR 2",
+   "webhookId": "96b53e2f-9427-45e7-841b-3e6ef6abe8fa",
+   "credentials": {
+    "smtp": {
+     "id": "REEMPLAZAR",
+     "name": "JAURE SMTP"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "fromEmail": "{{SMTP_FROM_EMAIL}}",
+    "toEmail": "{{PUSHOVER_ASESOR3}}",
+    "subject": "=🔔 Lead: {{ $('Detectar Alerta Asesor1').first().json.motivo_alerta }} - {{ $('Detectar Alerta Asesor1').first().json.cliente_nombre || 'Sin nombre' }} | JAURE",
+    "html": "=<div style=\"font-family:Arial,sans-serif;max-width:600px;margin:0 auto;\">\n  <div style=\"background:#0033CC;padding:20px;border-radius:8px 8px 0 0;\">\n    <h2 style=\"color:#fff;margin:0;\">🔧 JAURE Ingeniería Automotriz — Cliente Requiere Atención</h2>\n  </div>\n\n  <div style=\"background:#f9f9f9;padding:20px;border-radius:0 0 8px 8px;border:1px solid #ddd;\">\n    <table style=\"width:100%;border-collapse:collapse;\">\n      \n      \n      <tr style=\"background:#e8f5e9;border-left:4px solid #43a047;\">\n        <td style=\"padding:12px;font-weight:bold;color:#2e7d32;\">📋 Contexto</td>\n        <td style=\"padding:12px;color:#222;font-size:14px;line-height:1.5;\">\n          {{ $('Generar Resumen').first().json.choices[0].message.content || 'Sin resumen disponible' }}\n        </td>\n      </tr>\n\n      <tr style=\"background:#f0f0f0;\">\n        <td style=\"padding:10px;font-weight:bold;color:#555;width:38%;\">👤 Nombre</td>\n        <td style=\"padding:10px;color:#222;\">\n          {{ $('Detectar Alerta Asesor1').first().json.cliente_nombre || '—' }}\n        </td>\n      </tr>\n\n      <tr>\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">📱 WhatsApp cliente</td>\n        <td style=\"padding:10px;color:#222;\">\n          <a href=\"https://wa.me/{{ $('Detectar Alerta Asesor1').first().json.wa_id }}\"\n             style=\"color:#25D366;font-weight:bold;text-decoration:none;\"\n             target=\"_blank\">\n             {{ $('Detectar Alerta Asesor1').first().json.wa_id }}\n          </a>\n        </td>\n      </tr>\n\n      <tr style=\"background:#f0f0f0;\">\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">🏢 Número receptor</td>\n        <td style=\"padding:10px;color:#222;\">\n          {{ $('Detectar Alerta Asesor1').first().json.numero_negocio }}\n        </td>\n      </tr>\n\n      <tr>\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">💬 Último mensaje</td>\n        <td style=\"padding:10px;color:#222;\">\n          {{ $('Detectar Alerta Asesor1').first().json.cliente_mensaje }}\n        </td>\n      </tr>\n\n      <tr style=\"background:#f0f0f0;\">\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">🤖 Respuesta del asistente</td>\n        <td style=\"padding:10px;color:#222;\">\n          {{ $('Detectar Alerta Asesor1').first().json.mensaje_limpio }}\n        </td>\n      </tr>\n\n      <tr>\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">📅 Fecha y hora</td>\n        <td style=\"padding:10px;color:#222;\">\n          {{ DateTime.now().setZone('America/Mexico_City').toFormat('dd/MM/yyyy HH:mm') }} (Hora México)\n        </td>\n      </tr>\n\n    </table>\n\n    <div style=\"margin-top:20px;padding:15px;background:#d1ecf1;border-left:4px solid #17a2b8;border-radius:4px;\">\n      <strong>✈️ Atención requerida:</strong><br>\n      Este cliente necesita seguimiento por parte de un asesor de JAURE Agency.\n      El asistente virtual ha detectado intención de compra o requiere atención personalizada.\n      Contáctalo por WhatsApp lo antes posible.\n    </div>\n  </div>\n\n  <p style=\"font-size:11px;color:#aaa;text-align:center;margin-top:10px;\">\n    Notificación automática — JAURE Agency · Tulancingo, Hidalgo\n  </p>\n</div>",
+    "options": {}
+   },
+   "type": "n8n-nodes-base.emailSend",
+   "typeVersion": 2.1,
+   "position": [
+    17424,
+    7568
+   ],
+   "id": "4a11c312-4230-4317-8a13-652c80f1518e",
+   "name": "PUSHOVER ASESOR 3",
+   "webhookId": "f9d67c65-ca19-4a7d-a3b7-c07a7677cfe6",
+   "credentials": {
+    "smtp": {
+     "id": "REEMPLAZAR",
+     "name": "JAURE SMTP"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "promptType": "define",
+    "text": "=Numero WhatsApp del cliente: {{ $('Combinar Mensajes').first().json.Telefono }}\nNombre en WhatsApp: {{ $('Combinar Mensajes').first().json.Nombre }}\nMensaje del cliente: {{ $('Combinar Mensajes').first().json.Mensaje }}\n\nINVENTARIO ACTUAL (datos en vivo del Google Sheet de JAURE):\n{{ $json.inventarioFormateado }}",
+    "options": {
+     "systemMessage": "ROL\nEres el asistente de ventas de JAURE Ingenieria Automotriz, Centro Automotriz Integral (llantas nuevas y seminuevas, alineacion y balanceo por computadora, cambio de aceite, suspension, frenos, diagnostico y mantenimiento).\nTu objetivo es conseguir el nombre del cliente, la medida de su llanta o el modelo/anio de su vehiculo, el servicio que necesita, y conectarlo con un asesor para cerrar la venta.\nConoces el inventario en vivo. Si algo no esta en el inventario, no lo niegues: ofrecelo como pedido especial que un asesor cotiza el mismo dia.\n\nREGLA DE ORO: Cuando el cliente mencione medida de llanta + cantidad, o modelo de vehiculo + servicio, o pregunte precio, eso es senal de compra. Pide su nombre y empuja al cierre.\n\nESTRATEGIA DE CIERRE EN 3 PASOS\nPaso 1 - Primer mensaje: responde breve y humano, pregunta la medida de la llanta (esta en el costado, ej. 205/55 R16) o el modelo y anio del vehiculo.\nPaso 2 - Segundo mensaje: si el cliente da medida o vehiculo, muestra 1 opcion concreta del inventario con precio, pregunta cuantas piezas necesita y empuja la venta.\nPaso 3 - Tercer mensaje en adelante: si el cliente sigue preguntando, pide su nombre y empuja al cierre.\n\nEjemplo paso 3:\nPerfecto, 4 llantas 205/55 R16! Para que un asesor te confirme precio exacto y disponibilidad, me compartes tu nombre? Te escribe hoy mismo.\n\nSENALES DE CIERRE INMEDIATO\nCuando el cliente diga o pregunte alguna de estas cosas, ve directo al cierre:\n- Menciona medida de llanta + cantidad\n- Pregunta cuanto cuesta algo especifico\n- Pregunta por disponibilidad o stock\n- Menciona su vehiculo y un servicio (alineacion, frenos, suspension, aceite)\n- Pide factura o pregunta formas de pago\n\nRespuesta de cierre directa:\n[INTENCION_COMPRA] Claro que si! Me compartes tu nombre para que un asesor te confirme precio exacto y disponibilidad?\n\nCUANDO EL PRODUCTO NO ESTA EN EL INVENTARIO\nNo lo inventes. Pero no lo niegues, lo conseguimos sobre pedido. Ve directo al cierre:\nEsa medida la cotizamos sobre pedido. Me dices tu nombre y un asesor te manda opciones hoy mismo.\nNO vuelvas a preguntar lo mismo si el cliente ya pidio cotizacion antes.\n\nCUANDO EL PRODUCTO SI ESTA EN EL INVENTARIO\nUsa SOLO el precio que aparece en el INVENTARIO ACTUAL que recibes abajo. NUNCA inventes un precio.\nEjemplo: La llanta [marca/medida] esta en [precio EXACTO del inventario]. Me compartes tu nombre para que un asesor te aparte las piezas?\n\nHORARIO DE ATENCION HUMANA\nLunes a sabado de 9:00 AM a 6:00 PM hora de Mexico.\nFuera de horario: responde calido, di que un asesor le da seguimiento al iniciar horario y menciona los horarios.\n\nREGLA DE PRECIOS (MUY IMPORTANTE)\n- SOLO usa precios que aparezcan en el INVENTARIO ACTUAL que recibes en cada mensaje.\n- Si el producto NO esta en el inventario, NUNCA inventes un precio. Di: \"Eso lo cotizamos sobre pedido, un asesor te manda el precio exacto.\"\n- Si el producto SI esta en el inventario, usa el precio EXACTO tal cual aparece, no lo redondees ni lo modifiques.\n- NUNCA uses \"desde $X\" si ese precio no esta en el inventario.\n- Esta PROHIBIDO inventar, estimar o redondear precios.\n\nCOMO USAR EL INVENTARIO\nRecibiras el campo INVENTARIO ACTUAL con la existencia actualizada.\nUsalo cuando el cliente pregunte por medida, marca, precio o disponibilidad.\nNo inventes datos; si no conoces algo, comenta que un asesor lo atendera lo antes posible.\n\nSi el cliente pregunta de forma general:\n1. Intenta de forma calida obtener: medida de llanta o modelo/anio del vehiculo, servicio que necesita, cuantas piezas.\n2. Haz UNA pregunta: medida, vehiculo, cantidad o servicio.\n\nACCION AL PRIMER CONTACTO\nLlama a registrar_ticket antes de responder.\nEstado: Nuevo, Prioridad: MEDIA.\n\nACTUALIZACION DEL TICKET\nLlama a registrar_ticket cuando el cliente de: nombre, medida, vehiculo, cantidad, servicio o quiera comprar.\n\nHERRAMIENTAS\n1. consultar_faq: dudas de horarios, ubicacion, pagos, garantias, politicas\n2. registrar_ticket: primer contacto, actualizar datos, cotizacion, compra, escalacion\n\nDETECCION DE INTENCION DE COMPRA\nSi el cliente quiere comprar, apartar o pagar:\n[INTENCION_COMPRA]\n1. Llama a registrar_ticket (Prioridad: ALTA)\n2. Pide nombre si no lo tienes\n3. Di que un asesor le contacta para confirmar\n\nDETECCION DE PRESUPUESTO ALTO / FLOTILLAS\nSi menciona mas de 20,000 MXN, flotilla, empresa, mayoreo, camiones o 8+ llantas:\n[PRESUPUESTO_ALTO]\nDi que un asesor especializado en flotillas le contactara.\n\nFLOTILLAS Y MAYOREO = PRESUPUESTO ALTO\nCada llanta vale aprox 2,500 MXN. Si son 8 llantas o mas, es PRESUPUESTO ALTO automaticamente.\nEjemplos:\n- \"Necesito llantas para mi flotilla de 5 camionetas\" -> 20 llantas -> [PRESUPUESTO_ALTO]\n- \"Somos una empresa, ocupamos 30 llantas\" -> [PRESUPUESTO_ALTO]\n- \"Quiero 2 llantas\" -> flujo normal\n\nCuando detectes flotilla o mayoreo (8+ llantas):\n[PRESUPUESTO_ALTO]Excelente, para flotillas manejamos precios especiales. Me compartes tu nombre? {{ASESOR1_NOMBRE}}, nuestro asesor de flotillas, te contacta hoy.\n\nPROTOCOLO DE ESCALACION\nEscala si: no puedes resolver, problema con pago o garantia, cliente molesto, pide persona, urgencia (ponchadura en carretera).\n1. Pide nombre\n2. registrar_ticket (Estado: Escalado, Prioridad: ALTA)\n3. Un asesor te contactara en breve.\n\nESTILO\n- Maximo 3 lineas por mensaje\n- Una sola pregunta a la vez\n- Directo, calido, como vendedor de mostrador por WhatsApp\n- Emojis con moderacion\n- Sin asteriscos, hashtags ni markdown\n- Sin mencionar sistemas internos\n- No digas que eres bot\n- NUNCA repitas la misma pregunta que ya hiciste antes en la conversacion\n\nMARCADORES OBLIGATORIOS (NUNCA LOS OMITAS)\nCada vez que tu respuesta hable de asesor, contactar, seguimiento, apartado o cierre de venta, DEBES incluir el marcador correspondiente al INICIO de tu mensaje. Sin marcador, el sistema NO notifica al asesor y el cliente se queda sin atender.\n\nSIEMPRE pon el marcador cuando:\n- Mencionas que un asesor contactara al cliente -> [INTENCION_COMPRA]\n- El cliente pregunta precio, cuanto cuesta, disponibilidad -> [INTENCION_COMPRA]\n- Pides nombre para cerrar venta o pasar con asesor -> [INTENCION_COMPRA]\n- El cliente menciona medida + cantidad o vehiculo + servicio -> [INTENCION_COMPRA]\n- Flotilla, empresa, mayoreo, 8+ llantas, monto alto -> [PRESUPUESTO_ALTO]\n- El cliente pide hablar con persona/asesor -> [QUIERE_ASESOR]\n- El cliente esta frustrado o molesto con el bot -> [CANSADO_BOT]\n\nEjemplo CORRECTO:\nCliente: \"Cuanto salen 4 llantas 195/65 R15?\"\nBot: [INTENCION_COMPRA]La 195/65 R15 esta en $1,850 MXN por pieza. Para 4 piezas un asesor te confirma disponibilidad y te las aparta. Me compartes tu nombre?\n(IMPORTANTE: el precio DEBE salir del INVENTARIO, nunca lo inventes)\n\nEjemplo INCORRECTO (NUNCA hagas esto):\nCliente: \"Cuanto salen 4 llantas?\"\nBot: Voy a pasar tus datos para que un asesor te envie opciones.\n(FALTA el marcador [INTENCION_COMPRA] - el asesor NO recibe la alerta)\n\n*ULTIMA REGLA DE ORO\n-Siempre que vayas a mandar a una escalacion no se te olvide mencionar que se pasara a un asesor humano."
+    }
+   },
+   "type": "@n8n/n8n-nodes-langchain.agent",
+   "typeVersion": 3,
+   "position": [
+    15536,
+    7632
+   ],
+   "id": "23b9410e-9c7a-4900-b9f0-53bbbef16fe1",
+   "name": "AI Agent"
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "https://api.ycloud.com/v2/whatsapp/messages/sendDirectly",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "X-API-Key",
+       "value": "{{YCLOUD_API_KEY_JAURE}}"
+      }
+     ]
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({ from: $json.numero_negocio, to: $json.wa_id, type: 'text', text: { body: $json.mensaje_limpio, preview_url: false } }) }}",
+    "options": {}
+   },
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.3,
+   "position": [
+    16240,
+    7600
+   ],
+   "id": "455a4536-b5a9-4460-8567-a1b9eea40c51",
+   "name": "HTTP Request"
+  },
+  {
+   "parameters": {
+    "rules": {
+     "values": [
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": true,
+         "leftValue": "",
+         "typeValidation": "strict",
+         "version": 2
+        },
+        "conditions": [
+         {
+          "id": "sw-texto-001",
+          "leftValue": "={{ $('Edit Fields1').item.json['Tipo de mensaje'] }}",
+          "rightValue": "text",
+          "operator": {
+           "type": "string",
+           "operation": "equals"
+          }
+         }
+        ],
+        "combinator": "and"
+       },
+       "renameOutput": true,
+       "outputKey": "texto"
+      },
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": true,
+         "leftValue": "",
+         "typeValidation": "strict",
+         "version": 2
+        },
+        "conditions": [
+         {
+          "id": "sw-audio-001",
+          "leftValue": "={{ $('Edit Fields1').item.json['Tipo de mensaje'] }}",
+          "rightValue": "audio",
+          "operator": {
+           "type": "string",
+           "operation": "equals"
+          }
+         }
+        ],
+        "combinator": "and"
+       },
+       "renameOutput": true,
+       "outputKey": "audio"
+      },
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": true,
+         "leftValue": "",
+         "typeValidation": "strict",
+         "version": 2
+        },
+        "conditions": [
+         {
+          "id": "sw-imagen-001",
+          "leftValue": "={{ $('Edit Fields1').item.json['Tipo de mensaje'] }}",
+          "rightValue": "image",
+          "operator": {
+           "type": "string",
+           "operation": "equals"
+          }
+         }
+        ],
+        "combinator": "and"
+       },
+       "renameOutput": true,
+       "outputKey": "imagen"
+      }
+     ]
+    },
+    "options": {
+     "fallbackOutput": "extra",
+     "renameFallbackOutput": "No procesamos"
+    }
+   },
+   "type": "n8n-nodes-base.switch",
+   "typeVersion": 3.3,
+   "position": [
+    13120,
+    7424
+   ],
+   "id": "7f50dfcb-fc1a-438f-bce5-98a9a48c6025",
+   "name": "Clasificar Mensaje"
+  },
+  {
+   "parameters": {
+    "resource": "audio",
+    "operation": "transcribe",
+    "options": {}
+   },
+   "type": "@n8n/n8n-nodes-langchain.openAi",
+   "typeVersion": 2.1,
+   "position": [
+    13648,
+    6976
+   ],
+   "id": "05273fcc-30d2-4b83-90a5-5d59087bee4d",
+   "name": "Transcribe a recording",
+   "credentials": {
+    "openAiApi": {
+     "id": "REEMPLAZAR",
+     "name": "JAURE OpenAI"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "assignments": {
+     "assignments": [
+      {
+       "id": "gmu-audio-link-001",
+       "name": "url",
+       "value": "={{ $('Webhook1').first().json.body.whatsappInboundMessage.audio.link }}",
+       "type": "string"
+      },
+      {
+       "id": "gmu-audio-mime-001",
+       "name": "mimeType",
+       "value": "={{ $('Webhook1').first().json.body.whatsappInboundMessage.audio.mimeType || $('Webhook1').first().json.body.whatsappInboundMessage.audio.mime_type || 'audio/ogg' }}",
+       "type": "string"
+      },
+      {
+       "id": "gmu-audio-id-001",
+       "name": "mediaId",
+       "value": "={{ $('Webhook1').first().json.body.whatsappInboundMessage.audio.id }}",
+       "type": "string"
+      }
+     ]
+    },
+    "options": {}
+   },
+   "type": "n8n-nodes-base.set",
+   "typeVersion": 3.4,
+   "position": [
+    13232,
+    6976
+   ],
+   "id": "4e4a0c98-2041-431d-8236-c00c1f752704",
+   "name": "Get Media URL"
+  },
+  {
+   "parameters": {
+    "url": "={{ $json.url }}",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "X-API-Key",
+       "value": "{{YCLOUD_API_KEY_JAURE}}"
+      }
+     ]
+    },
+    "options": {
+     "response": {
+      "response": {
+       "responseFormat": "file"
+      }
+     }
+    }
+   },
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    13456,
+    6976
+   ],
+   "id": "937a7ca4-d6be-4c4c-98e9-27296bf9e61d",
+   "name": "Download Audio"
+  },
+  {
+   "parameters": {
+    "assignments": {
+     "assignments": [
+      {
+       "id": "norm-nombre-001",
+       "name": "Nombre",
+       "value": "={{ $('Edit Fields1').first().json.Nombre }}",
+       "type": "string"
+      },
+      {
+       "id": "norm-telefono-001",
+       "name": "Telefono",
+       "value": "={{ $('Edit Fields1').first().json.Telefono }}",
+       "type": "string"
+      },
+      {
+       "id": "norm-mensaje-001",
+       "name": "Mensaje",
+       "value": "={{ $json.text || '' }}",
+       "type": "string"
+      },
+      {
+       "id": "norm-idmsg-001",
+       "name": "ID mensaje",
+       "value": "={{ $('Edit Fields1').first().json['ID mensaje'] }}",
+       "type": "string"
+      },
+      {
+       "id": "norm-tipo-001",
+       "name": "Tipo de mensaje",
+       "value": "text",
+       "type": "string"
+      },
+      {
+       "id": "norm-negocio-001",
+       "name": "NumeroNegocio",
+       "value": "={{ $('Edit Fields1').first().json.NumeroNegocio }}",
+       "type": "string"
+      },
+      {
+       "id": "norm-esaudio-001",
+       "name": "esAudio",
+       "value": true,
+       "type": "boolean"
+      }
+     ]
+    },
+    "options": {}
+   },
+   "type": "n8n-nodes-base.set",
+   "typeVersion": 3.4,
+   "position": [
+    13456,
+    7232
+   ],
+   "id": "df64829d-d7b3-4f0e-a4b6-bf266fec4799",
+   "name": "Armar Mensaje Audio"
+  },
+  {
+   "parameters": {
+    "resource": "image",
+    "operation": "analyze",
+    "modelId": {
+     "__rl": true,
+     "value": "gpt-4o-mini",
+     "mode": "id"
+    },
+    "text": "={{ 'El cliente envió esta imagen' + ($('Edit Fields1').first().json.imageCaption ? ' con el siguiente mensaje: \"' + $('Edit Fields1').first().json.imageCaption + '\"' : ' sin texto adicional') + '. Analiza la imagen para que un agente de WhatsApp pueda responder con prudencia. Si contiene texto, tabla, hoja de datos, captura de Excel, comprobante, documento o números, extrae los datos importantes con fidelidad. Si no contiene información útil para negocio, describe brevemente lo visible. No inventes datos. Responde en español con este formato: CONTENIDO: ... DATOS DETECTADOS: ... POSIBLE INTENCION: ...' }}",
+    "inputType": "base64",
+    "options": {}
+   },
+   "type": "@n8n/n8n-nodes-langchain.openAi",
+   "typeVersion": 2.1,
+   "position": [
+    13568,
+    7792
+   ],
+   "id": "58a967cd-d88b-484c-828c-bb8704756d7e",
+   "name": "Analyze image",
+   "credentials": {
+    "openAiApi": {
+     "id": "REEMPLAZAR",
+     "name": "JAURE OpenAI"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "assignments": {
+     "assignments": [
+      {
+       "id": "gmu1-image-link-001",
+       "name": "url",
+       "value": "={{ $('Webhook1').first().json.body.whatsappInboundMessage.image.link }}",
+       "type": "string"
+      },
+      {
+       "id": "gmu1-image-mime-001",
+       "name": "mimeType",
+       "value": "={{ $('Webhook1').first().json.body.whatsappInboundMessage.image.mimeType || $('Webhook1').first().json.body.whatsappInboundMessage.image.mime_type || 'image/jpeg' }}",
+       "type": "string"
+      },
+      {
+       "id": "gmu1-image-caption-001",
+       "name": "caption",
+       "value": "={{ $('Webhook1').first().json.body.whatsappInboundMessage.image.caption || $('Edit Fields1').first().json.imageCaption || '' }}",
+       "type": "string"
+      },
+      {
+       "id": "gmu1-image-id-001",
+       "name": "mediaId",
+       "value": "={{ $('Webhook1').first().json.body.whatsappInboundMessage.image.id }}",
+       "type": "string"
+      }
+     ]
+    },
+    "options": {}
+   },
+   "type": "n8n-nodes-base.set",
+   "typeVersion": 3.4,
+   "position": [
+    13264,
+    7792
+   ],
+   "id": "8317779b-b18a-4386-9d5d-e7257951bb49",
+   "name": "Get Media URL1"
+  },
+  {
+   "parameters": {
+    "url": "={{ $json.url }}",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "X-API-Key",
+       "value": "{{YCLOUD_API_KEY_JAURE}}"
+      }
+     ]
+    },
+    "options": {
+     "response": {
+      "response": {
+       "responseFormat": "file"
+      }
+     }
+    }
+   },
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    13424,
+    7792
+   ],
+   "id": "b730c9c5-09d4-42b7-8de1-3d9635f1306f",
+   "name": "Download Imagen"
+  },
+  {
+   "parameters": {
+    "assignments": {
+     "assignments": [
+      {
+       "id": "norm-nombre-001",
+       "name": "Nombre",
+       "value": "={{ $('Edit Fields1').first().json.Nombre }}",
+       "type": "string"
+      },
+      {
+       "id": "norm-telefono-001",
+       "name": "Telefono",
+       "value": "={{ $('Edit Fields1').first().json.Telefono }}",
+       "type": "string"
+      },
+      {
+       "id": "norm-mensaje-001",
+       "name": "Mensaje",
+       "value": "={{ (function() { const caption = $('Get Media URL1').first().json.caption || $('Edit Fields1').first().json.imageCaption || ''; const analisis = $json.content?.[0]?.text || $json.content || $json['0']?.content?.[0]?.text || $json['0']?.content || $json.text || $json.output || $json.message?.content || ''; const partes = []; if (caption) partes.push('--- TEXTO DEL CLIENTE ---\\n' + caption); partes.push('--- ANÁLISIS VISUAL ---\\n' + analisis); return partes.join('\\n\\n'); })() }}",
+       "type": "string"
+      },
+      {
+       "id": "norm-idmsg-001",
+       "name": "ID mensaje",
+       "value": "={{ $('Edit Fields1').first().json['ID mensaje'] }}",
+       "type": "string"
+      },
+      {
+       "id": "norm-tipo-001",
+       "name": "Tipo de mensaje",
+       "value": "text",
+       "type": "string"
+      },
+      {
+       "id": "norm-negocio-001",
+       "name": "NumeroNegocio",
+       "value": "={{ $('Edit Fields1').first().json.NumeroNegocio }}",
+       "type": "string"
+      },
+      {
+       "id": "norm-esaudio-001",
+       "name": "esImagen",
+       "value": true,
+       "type": "boolean"
+      }
+     ]
+    },
+    "options": {}
+   },
+   "type": "n8n-nodes-base.set",
+   "typeVersion": 3.4,
+   "position": [
+    13696,
+    7792
+   ],
+   "id": "3b59ab50-e3ec-4353-8af8-4d4e782df613",
+   "name": "Armar Mensaje Imagen"
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "=UPDATE solicitudes SET asesor='{{ASESOR1_NOMBRE}}', actualizado=NOW() WHERE telefono='{{ $('Edit Fields1').first().json.Telefono.replace('+', '') }}'",
+    "options": {}
+   },
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.5,
+   "position": [
+    17424,
+    7088
+   ],
+   "id": "2337ad2a-f869-4d7d-b57f-cecf228fd1ed",
+   "name": "Asignar Asesor",
+   "credentials": {
+    "postgres": {
+     "id": "REEMPLAZAR",
+     "name": "JAURE Postgres"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "=UPDATE solicitudes SET asesor='{{ASESOR2_NOMBRE}}', actualizado=NOW() WHERE telefono='{{ $('Edit Fields1').first().json.Telefono.replace('+', '') }}'",
+    "options": {}
+   },
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.5,
+   "position": [
+    17664,
+    7328
+   ],
+   "id": "0e1c9fc5-1649-4f9a-8c8c-ceef78964a51",
+   "name": "Asignar Asesor1",
+   "credentials": {
+    "postgres": {
+     "id": "REEMPLAZAR",
+     "name": "JAURE Postgres"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "=UPDATE solicitudes SET asesor='{{ASESOR3_NOMBRE}}', actualizado=NOW() WHERE telefono='{{ $('Edit Fields1').first().json.Telefono.replace('+', '') }}'",
+    "options": {}
+   },
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.5,
+   "position": [
+    17664,
+    7568
+   ],
+   "id": "ac33a704-0a35-4968-8880-15b97de4c095",
+   "name": "Asignar Asesor2",
+   "credentials": {
+    "postgres": {
+     "id": "REEMPLAZAR",
+     "name": "JAURE Postgres"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "url": "https://api.ycloud.com/v2/contact/contacts",
+    "sendQuery": true,
+    "queryParameters": {
+     "parameters": [
+      {
+       "name": "filter.phoneNumber",
+       "value": "={{ $('Edit Fields1').first().json.Telefono }}"
+      },
+      {
+       "name": "includeTotal",
+       "value": "true"
+      }
+     ]
+    },
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "X-API-Key",
+       "value": "{{YCLOUD_API_KEY_JAURE}}"
+      }
+     ]
+    },
+    "options": {}
+   },
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    12224,
+    7696
+   ],
+   "id": "ac094ee1-2e35-4c25-b245-082ab2a58556",
+   "name": "Consultar Contactos YCloud1",
+   "onError": "continueRegularOutput"
+  },
+  {
+   "parameters": {
+    "jsCode": "\n// ── VERIFICAR TAG \"conocido\" en YCloud ─────────────────────────\nconst TAG_BUSCAR = 'conocido';\nconst base       = $('Edit Fields1').first().json;\nlet   esConocido = false;\n\ntry {\n  console.log('API response:', JSON.stringify($json).substring(0, 600));\n\n  const items = $json.items || $json.contacts || $json.data || [];\n\n  if (Array.isArray(items) && items.length > 0) {\n    for (const contacto of items) {\n      const tags = contacto.tags || contacto.tagIds || [];\n\n      console.log('Contacto:', contacto.phoneNumber,\n                  '| tags:', JSON.stringify(tags));\n\n      // YCloud puede devolver tags como:\n      //   [{id:\"xxx\", name:\"conocido\"}]  ← objetos con name\n      //   [\"id_abc\", \"id_def\"]           ← solo IDs (strings)\n      //   [{tagId:\"xxx\", tagName:\"...\"}] ← otro formato\n      const tieneTag = tags.some(t => {\n        if (typeof t === 'string') {\n          // Es un ID, no podemos comparar por nombre\n          // Si SOLO hay strings, asumimos que cualquier tag = conocido\n          return true;\n        }\n        // Es objeto: buscar por nombre\n        const nombre = (t.name || t.tagName || t.label || '').toLowerCase();\n        return nombre.includes(TAG_BUSCAR.toLowerCase());\n      });\n\n      if (tieneTag) {\n        esConocido = true;\n        console.log('→ CONOCIDO (tiene tag \"' + TAG_BUSCAR + '\")');\n        break;\n      }\n    }\n  }\n\n  if (!esConocido) {\n    console.log('→ NUEVO LEAD (sin tag \"' + TAG_BUSCAR + '\") para:', base.Telefono);\n  }\n\n} catch(e) {\n  console.log('Error:', e.message, '→ tratar como nuevo lead');\n  esConocido = false;\n}\n\nreturn [{ json: { ...base, esConocido } }];\n"
+   },
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    12608,
+    7696
+   ],
+   "id": "d7c395a6-8d8e-4d4c-b86e-251dd80f88ff",
+   "name": "Tiene Tag Conocido?1"
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "strict",
+      "version": 1
+     },
+     "conditions": [
+      {
+       "leftValue": "={{ $json.esConocido }}",
+       "rightValue": true,
+       "operator": {
+        "type": "boolean",
+        "operation": "true"
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   },
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    12912,
+    7696
+   ],
+   "id": "527d8d40-8446-4de1-85f1-ed26673a1060",
+   "name": "Es Numero Conocido?1"
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "=INSERT INTO solicitudes (telefono, nombre, ultimo_mensaje, canal, estado, prioridad, actualizado) VALUES ('{{ $('Combinar Mensajes').first().json.Telefono.replace('+', '') }}', '{{ $('Combinar Mensajes').first().json.Nombre || \"\" }}', '{{ ($('Combinar Mensajes').first().json.Mensaje || \"\").substring(0, 1000) }}', 'whatsapp', 'Nuevo', 'MEDIA', NOW()) ON CONFLICT (telefono) DO UPDATE SET nombre = COALESCE(NULLIF('{{ $('Combinar Mensajes').first().json.Nombre || \"\" }}', ''), solicitudes.nombre), ultimo_mensaje = '{{ ($('Combinar Mensajes').first().json.Mensaje || \"\").substring(0, 1000) }}', actualizado = NOW()",
+    "options": {}
+   },
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.5,
+   "position": [
+    15424,
+    7280
+   ],
+   "id": "35d80b5d-ae91-40f0-825b-f907dbabb383",
+   "name": "Registrar Ticket Siempre",
+   "credentials": {
+    "postgres": {
+     "id": "REEMPLAZAR",
+     "name": "JAURE Postgres"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "httpMethod": "POST",
+    "path": "jaure-salientes",
+    "options": {}
+   },
+   "type": "n8n-nodes-base.webhook",
+   "typeVersion": 2.1,
+   "position": [
+    16432,
+    8016
+   ],
+   "id": "7b9e1d3c-2d90-407b-8054-2f75c4ec2859",
+   "name": "Webhook Salientes",
+   "webhookId": "jaure-salientes-001",
+   "disabled": true
+  },
+  {
+   "parameters": {
+    "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst msg = body.whatsappOutboundMessage || body.whatsappMessage || body.data || body;\nconst from = String(msg.from || msg.fromNumber || \"\").replace(/\\D/g, \"\");\nconst to   = String(msg.to   || msg.toNumber   || \"\").replace(/\\D/g, \"\");\nconst tipo = String(msg.direction || body.type || \"\").toLowerCase();\nconst numerosNegocio = [\"{{NUMERO_JAURE}}\"];\nconst esSaliente = numerosNegocio.some(n => from.endsWith(n))\n                || tipo.includes(\"outbound\") || tipo.includes(\"sent\");\nreturn [{ json: { from, to, esSaliente, timestamp: new Date().toISOString() } }];\n"
+   },
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    16688,
+    8016
+   ],
+   "id": "d1cbf5b4-543c-4c7f-89b9-85c0cfa0a9ee",
+   "name": "Parsear Saliente",
+   "disabled": true
+  },
+  {
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "strict",
+      "version": 2
+     },
+     "conditions": [
+      {
+       "id": "sal-if-001",
+       "leftValue": "={{ $json.esSaliente }}",
+       "rightValue": true,
+       "operator": {
+        "type": "boolean",
+        "operation": "true"
+       }
+      }
+     ],
+     "combinator": "and"
+    },
+    "options": {}
+   },
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    16928,
+    8016
+   ],
+   "id": "47577490-4970-4441-8d96-0981f7640692",
+   "name": "IF Saliente Valido?",
+   "disabled": true
+  },
+  {
+   "parameters": {
+    "jsCode": "const staticData = $getWorkflowStaticData(\"global\");\nconst CICLO = [\"a2\", \"a3\", \"a4\"];\nconst turnoActual = staticData.turno_asesor || \"a2\";\nstaticData.turno_asesor = CICLO[(CICLO.indexOf(turnoActual) + 1) % CICLO.length];\nconst inp = $input.first().json;\nreturn [{ json: { ...inp, turno_asesor: turnoActual } }];"
+   },
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    17168,
+    8016
+   ],
+   "id": "e7f302d1-bcd2-4105-b611-da790ec6eeaa",
+   "name": "Asignar Turno Saliente",
+   "disabled": true
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "=INSERT INTO solicitudes (telefono, asesor, estado, prioridad, bot_bloqueado, fecha_pausa_bot, actualizado) VALUES ('{{ $json.to.replace('+', '') }}', '{{ $json.turno_asesor === \"a2\" ? \"{{ASESOR2_NOMBRE}}\" : ($json.turno_asesor === \"a3\" ? \"{{ASESOR3_NOMBRE}}\" : \"{{ASESOR4_NOMBRE}}\") }}', 'Escalado', 'ALTA', true, NOW(), NOW()) ON CONFLICT (telefono) DO UPDATE SET asesor = EXCLUDED.asesor, estado = 'Escalado', prioridad = 'ALTA', bot_bloqueado = true, fecha_pausa_bot = NOW(), actualizado = NOW()",
+    "options": {}
+   },
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.5,
+   "position": [
+    17408,
+    8016
+   ],
+   "id": "907af966-abdf-468d-b149-57e792f1d44b",
+   "name": "Pausar Bot Sheet",
+   "credentials": {
+    "postgres": {
+     "id": "REEMPLAZAR",
+     "name": "JAURE Postgres"
+    }
+   },
+   "disabled": true
+  },
+  {
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "minutes",
+       "minutesInterval": 30
+      }
+     ]
+    }
+   },
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "typeVersion": 1.2,
+   "position": [
+    16432,
+    8384
+   ],
+   "id": "31ab6b3a-fcd4-4285-9207-c3315c0bf498",
+   "name": "Cron Reactivar Bot",
+   "disabled": true
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "SELECT id, telefono, nombre, prioridad, fecha_pausa_bot, estado FROM solicitudes WHERE bot_bloqueado = true",
+    "options": {}
+   },
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.5,
+   "position": [
+    16688,
+    8384
+   ],
+   "id": "fbe442d1-13e8-497c-a85b-2dacb02a8e6c",
+   "name": "Leer Tickets Pausados",
+   "credentials": {
+    "postgres": {
+     "id": "REEMPLAZAR",
+     "name": "JAURE Postgres"
+    }
+   },
+   "disabled": true
+  },
+  {
+   "parameters": {
+    "jsCode": "const items = $input.all();\nconst ahora = Date.now();\nconst DOS_HORAS = 2 * 60 * 60 * 1000;\nconst expirados = items.filter(item => {\n  const prioridad = String(item.json.prioridad || '').trim().toUpperCase();\n  const fechaPausa = item.json.fecha_pausa_bot;\n  if (prioridad === 'ALTA' || !fechaPausa) return false;\n  return (ahora - new Date(fechaPausa).getTime()) > DOS_HORAS;\n});\nif (expirados.length === 0) return [];\nreturn expirados.map(item => ({ json: item.json }));"
+   },
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    16928,
+    8384
+   ],
+   "id": "0b27b153-4a5e-4d4d-94c5-98f5676d626d",
+   "name": "Filtrar 2hrs Expirados",
+   "disabled": true
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "=UPDATE solicitudes SET bot_bloqueado = false, estado = 'Atendido', prioridad = 'MEDIA', fecha_pausa_bot = NULL, actualizado = NOW() WHERE telefono = '{{ $json.telefono }}'",
+    "options": {}
+   },
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.5,
+   "position": [
+    17168,
+    8384
+   ],
+   "id": "44982252-ff74-462c-b770-360d1cdbbd08",
+   "name": "Reactivar Bot Sheet",
+   "credentials": {
+    "postgres": {
+     "id": "REEMPLAZAR",
+     "name": "JAURE Postgres"
+    }
+   },
+   "disabled": true
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "=UPDATE solicitudes SET historial = COALESCE(historial, '') || '[Cliente] ' || replace(replace('{{ ($('Detectar Alerta Asesor1').first().json.cliente_mensaje || '').substring(0, 500) }}', '''', ''''''), chr(10), ' ') || chr(10) || '[Bot] ' || replace(replace('{{ ($('Detectar Alerta Asesor1').first().json.mensaje_limpio || '').substring(0, 500) }}', '''', ''''''), chr(10), ' ') || chr(10) || '---' || chr(10) WHERE telefono = '{{ $('Detectar Alerta Asesor1').first().json.wa_id }}' RETURNING historial",
+    "options": {}
+   },
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.5,
+   "position": [
+    16080,
+    7420
+   ],
+   "id": "a1b2c3d4-hist-0001-0000-000000000001",
+   "name": "Guardar Historial",
+   "credentials": {
+    "postgres": {
+     "id": "REEMPLAZAR",
+     "name": "JAURE Postgres"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "method": "POST",
+    "url": "https://api.openai.com/v1/chat/completions",
+    "authentication": "predefinedCredentialType",
+    "nodeCredentialType": "openAiApi",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ]
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={\n  \"model\": \"gpt-4o-mini\",\n  \"max_tokens\": 200,\n  \"temperature\": 0.3,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"Genera un resumen de MÁXIMO 3 líneas de la conversación para un asesor de ventas de un centro automotriz (llantas y servicios). Incluye: vehículo, medida de llanta, servicio solicitado, cantidad de piezas, presupuesto y qué necesita. Si un dato no aparece, omítelo. NO inventes datos. Responde SOLO el resumen, sin encabezados.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"HISTORIAL:\\n{{ ($('Guardar Historial').first().json.historial || 'Sin historial').replace(/\\\"/g, '\\\\\\\"').replace(/\\n/g, '\\\\n') }}\\n\\nÚLTIMO MENSAJE: {{ ($('Detectar Alerta Asesor1').first().json.cliente_mensaje || '').replace(/\\\"/g, '\\\\\\\"').replace(/\\n/g, '\\\\n') }}\\nRESPUESTA BOT: {{ ($('Detectar Alerta Asesor1').first().json.mensaje_limpio || '').replace(/\\\"/g, '\\\\\\\"').replace(/\\n/g, '\\\\n') }}\"\n    }\n  ]\n}",
+    "options": {
+     "timeout": 15000
+    }
+   },
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    16380,
+    7100
+   ],
+   "id": "a1b2c3d4-resu-0002-0000-000000000002",
+   "name": "Generar Resumen",
+   "credentials": {
+    "openAiApi": {
+     "id": "REEMPLAZAR",
+     "name": "JAURE OpenAI"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "=UPDATE solicitudes SET asesor='{{ASESOR4_NOMBRE}}', actualizado=NOW() WHERE telefono='{{ $('Edit Fields1').first().json.Telefono.replace('+', '') }}'",
+    "options": {}
+   },
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.5,
+   "position": [
+    17664,
+    7768
+   ],
+   "id": "asignar-asesor-3-jaure",
+   "name": "Asignar Asesor3",
+   "credentials": {
+    "postgres": {
+     "id": "REEMPLAZAR",
+     "name": "JAURE Postgres"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "fromEmail": "{{SMTP_FROM_EMAIL}}",
+    "toEmail": "{{PUSHOVER_ASESOR4}}",
+    "subject": "=🔔 Lead: {{ $('Detectar Alerta Asesor1').first().json.motivo_alerta }} - {{ $('Detectar Alerta Asesor1').first().json.cliente_nombre || 'Sin nombre' }} | JAURE",
+    "html": "=<div style=\"font-family:Arial,sans-serif;max-width:600px;margin:0 auto;\">\n  <div style=\"background:#0033CC;padding:20px;border-radius:8px 8px 0 0;\">\n    <h2 style=\"color:#fff;margin:0;\">🔧 JAURE Ingeniería Automotriz — Cliente Requiere Atención</h2>\n  </div>\n\n  <div style=\"background:#f9f9f9;padding:20px;border-radius:0 0 8px 8px;border:1px solid #ddd;\">\n    <table style=\"width:100%;border-collapse:collapse;\">\n      \n      \n      <tr style=\"background:#e8f5e9;border-left:4px solid #43a047;\">\n        <td style=\"padding:12px;font-weight:bold;color:#2e7d32;\">📋 Contexto</td>\n        <td style=\"padding:12px;color:#222;font-size:14px;line-height:1.5;\">\n          {{ $('Generar Resumen').first().json.choices[0].message.content || 'Sin resumen disponible' }}\n        </td>\n      </tr>\n\n      <tr style=\"background:#f0f0f0;\">\n        <td style=\"padding:10px;font-weight:bold;color:#555;width:38%;\">👤 Nombre</td>\n        <td style=\"padding:10px;color:#222;\">\n          {{ $('Detectar Alerta Asesor1').first().json.cliente_nombre || '—' }}\n        </td>\n      </tr>\n\n      <tr>\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">📱 WhatsApp cliente</td>\n        <td style=\"padding:10px;color:#222;\">\n          <a href=\"https://wa.me/{{ $('Detectar Alerta Asesor1').first().json.wa_id }}\"\n             style=\"color:#25D366;font-weight:bold;text-decoration:none;\"\n             target=\"_blank\">\n             {{ $('Detectar Alerta Asesor1').first().json.wa_id }}\n          </a>\n        </td>\n      </tr>\n\n      <tr style=\"background:#f0f0f0;\">\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">🏢 Número receptor</td>\n        <td style=\"padding:10px;color:#222;\">\n          {{ $('Detectar Alerta Asesor1').first().json.numero_negocio }}\n        </td>\n      </tr>\n\n      <tr>\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">💬 Último mensaje</td>\n        <td style=\"padding:10px;color:#222;\">\n          {{ $('Detectar Alerta Asesor1').first().json.cliente_mensaje }}\n        </td>\n      </tr>\n\n      <tr style=\"background:#f0f0f0;\">\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">🤖 Respuesta del asistente</td>\n        <td style=\"padding:10px;color:#222;\">\n          {{ $('Detectar Alerta Asesor1').first().json.mensaje_limpio }}\n        </td>\n      </tr>\n\n      <tr>\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">📅 Fecha y hora</td>\n        <td style=\"padding:10px;color:#222;\">\n          {{ DateTime.now().setZone('America/Mexico_City').toFormat('dd/MM/yyyy HH:mm') }} (Hora México)\n        </td>\n      </tr>\n\n    </table>\n\n    <div style=\"margin-top:20px;padding:15px;background:#d1ecf1;border-left:4px solid #17a2b8;border-radius:4px;\">\n      <strong>✈️ Atención requerida:</strong><br>\n      Este cliente necesita seguimiento por parte de un asesor de JAURE Agency.\n      El asistente virtual ha detectado intención de compra o requiere atención personalizada.\n      Contáctalo por WhatsApp lo antes posible.\n    </div>\n  </div>\n\n  <p style=\"font-size:11px;color:#aaa;text-align:center;margin-top:10px;\">\n    Notificación automática — JAURE Agency · Tulancingo, Hidalgo\n  </p>\n</div>",
+    "options": {}
+   },
+   "type": "n8n-nodes-base.emailSend",
+   "typeVersion": 2.1,
+   "position": [
+    17424,
+    7768
+   ],
+   "id": "pushover-asesor-4-jaure",
+   "name": "PUSHOVER ASESOR 4",
+   "webhookId": "f9d67c65-ca19-4a7d-a3b7-c07a7677cfe6",
+   "credentials": {
+    "smtp": {
+     "id": "REEMPLAZAR",
+     "name": "JAURE SMTP"
+    }
+   }
+  }
+ ],
+ "pinData": {
+  "Webhook1": [
+   {
+    "json": {
+     "headers": {
+      "host": "{{N8N_HOST}}",
+      "user-agent": "Go-http-client/2.0",
+      "content-length": "527",
+      "accept-encoding": "gzip",
+      "baggage": "Eagleeye-Prpc=,Eagleeye-Pappname=1fof0zltrv1@d3b96e44a5c9fa6",
+      "content-type": "application/json",
+      "traceparent": "00-adccdc2069d9bc9d47892c3ed148e465-217cd22599da0720-00",
+      "x-forwarded-for": "47.236.160.49",
+      "x-forwarded-host": "{{N8N_HOST}}",
+      "x-forwarded-port": "443",
+      "x-forwarded-proto": "https",
+      "x-forwarded-server": "f5320e39e38d",
+      "x-real-ip": "47.236.160.49",
+      "x-webhook-endpoint-id": "69f9432c8a34975ec9db58b9",
+      "ycloud-signature": "t=1780951888,s=6cdcc17ec40103433be4561b6388d77e3839895af7e340241a11f4b7cfbd5f9d"
+     },
+     "params": {},
+     "query": {},
+     "body": {
+      "id": "evt_6a272b5092aeef552e8cbf6e",
+      "type": "whatsapp.inbound_message.received",
+      "apiVersion": "v2",
+      "createTime": "2026-06-08T20:51:28.009Z",
+      "whatsappInboundMessage": {
+       "id": "6a272b4f32cd341104693af9",
+       "wamid": "wamid.HBgNNTIxNzc1MzcxODk0MhUCABIYIEE1RkRFRTMwMUJERUNGNDNBMjg1NDRGQUZEREIyNjQ2AA==",
+       "wabaId": "201675593020731",
+       "from": "+527753718942",
+       "fromUserId": "MX.1753101422765616",
+       "customerProfile": {
+        "name": "Zah"
+       },
+       "to": "+527752658413",
+       "sendTime": "2026-06-08T20:51:26.000Z",
+       "type": "text",
+       "text": {
+        "body": "3 personas y para noviembre"
+       }
+      }
+     },
+     "webhookUrl": "https://{{N8N_HOST}}/webhook/coexisten",
+     "executionMode": "production"
+    },
+    "pairedItem": {
+     "item": 0
+    }
+   }
+  ]
+ },
+ "connections": {
+  "Redis Push": {
+   "main": [
+    [
+     {
+      "node": "Redis Recoger",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Redis Recoger": {
+   "main": [
+    [
+     {
+      "node": "Switch1",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Switch1": {
+   "main": [
+    [
+     {
+      "node": "Ignorar",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Redis Delete",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Wait Redis",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Redis Delete": {
+   "main": [
+    [
+     {
+      "node": "Combinar Mensajes",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Wait Redis": {
+   "main": [
+    [
+     {
+      "node": "Redis Recoger",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Combinar Mensajes": {
+   "main": [
+    [
+     {
+      "node": "Leer Inventario Sheets",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Webhook1": {
+   "main": [
+    [
+     {
+      "node": "Edit Fields1",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Edit Fields1": {
+   "main": [
+    [
+     {
+      "node": "IF Canal Receptor",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Detectar Alerta Asesor1": {
+   "main": [
+    [
+     {
+      "node": "HTTP Request",
+      "type": "main",
+      "index": 0
+     },
+     {
+      "node": "Guardar Historial",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Consultar Contactos YCloud": {
+   "main": [
+    [
+     {
+      "node": "Tiene Tag Conocido?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Tiene Tag Conocido?": {
+   "main": [
+    [
+     {
+      "node": "Es Numero Conocido?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Es Numero Conocido?": {
+   "main": [
+    [],
+    [
+     {
+      "node": "Clasificar Mensaje",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "IF Canal Receptor": {
+   "main": [
+    [
+     {
+      "node": "Consultar Contactos YCloud",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Consultar Contactos YCloud1",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Bot Bloqueado?": {
+   "main": [
+    [
+     {
+      "node": "No Responder Bot",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Redis Push",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Leer Ticket Handoff": {
+   "main": [
+    [
+     {
+      "node": "Verificar Handoff",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Verificar Handoff": {
+   "main": [
+    [
+     {
+      "node": "Bot Bloqueado?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "IF Necesita Asesor?": {
+   "main": [
+    [
+     {
+      "node": "Generar Resumen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Marcar Escalado Sheet": {
+   "main": [
+    [
+     {
+      "node": "IF Presupuesto Alto? BS",
+      "type": "main",
+      "index": 0
+     },
+     {
+      "node": "Notificar Email Lead",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "IF Presupuesto Alto? BS": {
+   "main": [
+    [
+     {
+      "node": "PUSHOVER ASESOR VIP",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Turno Asesor?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "OpenAI Chat Model": {
+   "ai_languageModel": [
+    [
+     {
+      "node": "AI Agent",
+      "type": "ai_languageModel",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Simple Memory1": {
+   "ai_memory": [
+    [
+     {
+      "node": "AI Agent",
+      "type": "ai_memory",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "consultar_faq1": {
+   "ai_tool": [
+    [
+     {
+      "node": "AI Agent",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "registrar_ticket1": {
+   "ai_tool": [
+    [
+     {
+      "node": "AI Agent",
+      "type": "ai_tool",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "AI Agent": {
+   "main": [
+    [
+     {
+      "node": "Detectar Alerta Asesor1",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Clasificar Mensaje": {
+   "main": [
+    [
+     {
+      "node": "Leer Ticket Handoff",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Get Media URL",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Get Media URL1",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Transcribe a recording": {
+   "main": [
+    [
+     {
+      "node": "Armar Mensaje Audio",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Get Media URL": {
+   "main": [
+    [
+     {
+      "node": "Download Audio",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Download Audio": {
+   "main": [
+    [
+     {
+      "node": "Transcribe a recording",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Armar Mensaje Audio": {
+   "main": [
+    [
+     {
+      "node": "Leer Ticket Handoff",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Analyze image": {
+   "main": [
+    [
+     {
+      "node": "Armar Mensaje Imagen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Get Media URL1": {
+   "main": [
+    [
+     {
+      "node": "Download Imagen",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Download Imagen": {
+   "main": [
+    [
+     {
+      "node": "Analyze image",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Armar Mensaje Imagen": {
+   "main": [
+    [
+     {
+      "node": "Leer Ticket Handoff",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Consultar Contactos YCloud1": {
+   "main": [
+    [
+     {
+      "node": "Tiene Tag Conocido?1",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Tiene Tag Conocido?1": {
+   "main": [
+    [
+     {
+      "node": "Es Numero Conocido?1",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Es Numero Conocido?1": {
+   "main": [
+    [],
+    [
+     {
+      "node": "Clasificar Mensaje",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Registrar Ticket Siempre": {
+   "main": [
+    [
+     {
+      "node": "AI Agent",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Webhook Salientes": {
+   "main": [
+    [
+     {
+      "node": "Parsear Saliente",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Parsear Saliente": {
+   "main": [
+    [
+     {
+      "node": "IF Saliente Valido?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "IF Saliente Valido?": {
+   "main": [
+    [
+     {
+      "node": "Asignar Turno Saliente",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Asignar Turno Saliente": {
+   "main": [
+    [
+     {
+      "node": "Pausar Bot Sheet",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Cron Reactivar Bot": {
+   "main": [
+    [
+     {
+      "node": "Leer Tickets Pausados",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Leer Tickets Pausados": {
+   "main": [
+    [
+     {
+      "node": "Filtrar 2hrs Expirados",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Filtrar 2hrs Expirados": {
+   "main": [
+    [
+     {
+      "node": "Reactivar Bot Sheet",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Guardar Historial": {
+   "main": [
+    [
+     {
+      "node": "IF Necesita Asesor?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Generar Resumen": {
+   "main": [
+    [
+     {
+      "node": "Marcar Escalado Sheet",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Leer Inventario Sheets": {
+   "main": [
+    [
+     {
+      "node": "Formatear Inventario",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Formatear Inventario": {
+   "main": [
+    [
+     {
+      "node": "Registrar Ticket Siempre",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "PUSHOVER ASESOR VIP": {
+   "main": [
+    [
+     {
+      "node": "Asignar Asesor",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "PUSHOVER ASESOR 2": {
+   "main": [
+    [
+     {
+      "node": "Asignar Asesor1",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "PUSHOVER ASESOR 3": {
+   "main": [
+    [
+     {
+      "node": "Asignar Asesor2",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Turno Asesor?": {
+   "main": [
+    [
+     {
+      "node": "PUSHOVER ASESOR 2",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "PUSHOVER ASESOR 3",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "PUSHOVER ASESOR 4",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "PUSHOVER ASESOR 4": {
+   "main": [
+    [
+     {
+      "node": "Asignar Asesor3",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "active": true,
+ "settings": {
+  "executionOrder": "v1"
+ },
+ "versionId": "2be7b084-32a6-4de7-b392-8ca36c25a796",
+ "meta": {
+  "templateCredsSetupCompleted": true,
+  "instanceId": "fc73c3c424dfecc02e14a74cf8b579ba1f86966d0ffb4b006f8d93f7a6ea1d93"
+ },
+ "id": "oGyi2jAPWVIJ8DxR",
+ "tags": []
+}
