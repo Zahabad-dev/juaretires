@@ -3,37 +3,42 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { whatsappLink } from "@/lib/whatsapp";
 
-/* Capacidades — Brandbook p.6 "Qué es JAURE" */
+/* Capacidades — Brandbook p.6 "Qué es JAURE" + servicios franquicia */
 const SERVICES = [
   {
     title: "Diagnóstico",
     text: "Identificamos con precisión el origen de cada falla utilizando tecnología avanzada y metodologías de ingeniería.",
-    foto: "/fotos/taller-autos.jpg",
+    foto: "/fotos/diagnostico.jpg",
   },
   {
     title: "Mantenimiento",
     text: "Servicios preventivos y correctivos bajo estándares OEM para garantizar máxima confiabilidad.",
-    foto: "/fotos/taller-elevadores.jpg",
+    foto: "/fotos/mantenimiento.jpg",
+  },
+  {
+    title: "Cambio de Aceite",
+    text: "Cambio de aceite y filtros con productos certificados para prolongar la vida útil de tu motor.",
+    foto: "/fotos/cambio-aceite.jpg",
   },
   {
     title: "Llantas",
     text: "Las mejores marcas y soluciones de llantas para cada tipo de vehículo y necesidad.",
-    foto: "/fotos/rack-llantas.jpg",
+    foto: "/fotos/llantas.jpg",
   },
   {
     title: "Suspensión",
     text: "Revisamos y optimizamos cada componente para asegurar estabilidad, confort y seguridad en cada camino.",
-    foto: "/fotos/taller-interior.jpg",
+    foto: "/fotos/suspension.jpg",
   },
   {
     title: "Frenos",
     text: "Sistemas de frenado eficientes y confiables para tu seguridad y la de quienes te acompañan.",
-    foto: "/fotos/torque-rueda.jpg",
+    foto: "/fotos/frenos.jpg",
   },
   {
     title: "Alineación y Balanceo",
     text: "Precisión que se traduce en mayor vida útil de tus llantas, mejor manejo y menor consumo.",
-    foto: "/fotos/balanceo.jpg",
+    foto: "/fotos/alineacion.jpg",
   },
 ];
 
@@ -105,12 +110,43 @@ const STEPS = [
   },
 ];
 
+/* Franquicias — texto del cliente */
+const FRANQUICIA_VENTAJAS = [
+  {
+    title: "Inventario Respaldo",
+    text: "Con tu inversión inicial tendrás a tu disposición un inventario de llantas con valor de más de 50 millones de pesos.",
+  },
+  {
+    title: "Modelo Llave en Mano",
+    text: "Te entregamos un negocio listo para operar. Te acompañamos desde la selección del local hasta el día de la gran apertura.",
+  },
+  {
+    title: "Demanda Constante",
+    text: "Enfoque tanto en clientes particulares como en el lucrativo sector de flotillas empresariales.",
+  },
+];
+
+const FRANQUICIA_NUMEROS = [
+  { label: "Inversión inicial", value: "Desde $2.2 MDP" },
+  { label: "Rentabilidad mensual (EBITDA)", value: "$120 – $150 mil" },
+  { label: "Retorno de inversión", value: "≈ 18 meses" },
+  { label: "Cobertura", value: "Todo México" },
+];
+
+const FRANQUICIA_INCLUYE = [
+  "Licencia de la marca JAURE®",
+  "Know-How operativo comprobado",
+  "Manuales de procesos estandarizados",
+  "Selección estratégica de ubicación",
+  "Capacitación para ti y tu equipo",
+  "Asistencia en marketing y publicidad",
+  "Supervisión y acompañamiento constante",
+];
+
 const GALERIA = [
-  { src: "/fotos/fachada.jpg", alt: "Fachada JAURE", wide: true },
-  { src: "/fotos/lobby.jpg", alt: "Lobby JAURE" },
-  { src: "/fotos/exhibicion-rines.jpg", alt: "Exhibición de rines" },
-  { src: "/fotos/llantas-closeup.jpg", alt: "Llantas de alto desempeño" },
-  { src: "/fotos/sala-juntas.jpg", alt: "Sala de juntas JAURE" },
+  { src: "/fotos/generica3.jpg", alt: "Instalaciones JAURE", wide: true },
+  { src: "/fotos/generica2.jpg", alt: "Inventario de llantas JAURE" },
+  { src: "/fotos/generica1.jpg", alt: "Servicio en taller JAURE" },
 ];
 
 export default function Home() {
@@ -221,7 +257,7 @@ export default function Home() {
             <div className="relative">
               <div className="relative aspect-[4/5] w-full overflow-hidden">
                 <Image
-                  src="/fotos/recepcion.jpg"
+                  src="/fotos/entrada.jpg"
                   alt="Recepción JAURE Ingeniería Automotriz"
                   fill
                   sizes="(max-width: 640px) 100vw, 50vw"
@@ -237,13 +273,13 @@ export default function Home() {
         {/* ── MANIFIESTO ── */}
         <section className="relative overflow-hidden border-b border-brand-border">
           <Image
-            src="/fotos/auto-llanta-dark.jpg"
+            src="/fotos/generica1.jpg"
             alt=""
             fill
             sizes="100vw"
-            className="object-cover object-center opacity-40"
+            className="object-cover object-center opacity-35"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-brand-bg via-brand-bg/70 to-brand-bg/40" />
+          <div className="absolute inset-0 bg-gradient-to-r from-brand-bg via-brand-bg/75 to-brand-bg/45" />
           <div className="relative z-10 mx-auto max-w-6xl px-6 py-28">
             <p className="kicker">Nuestro Manifiesto</p>
             <h2 className="mt-5 max-w-3xl text-3xl font-bold leading-[1.15] text-brand-text sm:text-5xl">
@@ -270,30 +306,48 @@ export default function Home() {
               <div className="brand-line mx-auto mt-6" />
             </div>
 
-            <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               {SERVICES.map((s) => (
                 <div
                   key={s.title}
                   className="group flex flex-col overflow-hidden border border-brand-border bg-brand-surface transition-colors hover:border-brand-primary/50"
                 >
-                  <div className="relative aspect-video w-full overflow-hidden">
+                  <div className="relative aspect-[4/3] w-full overflow-hidden">
                     <Image
                       src={s.foto}
                       alt={s.title}
                       fill
-                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                       className="object-cover transition-transform duration-500 group-hover:scale-105"
                     />
                     <div className="absolute inset-x-0 bottom-0 h-0.5 bg-brand-primary opacity-0 transition-opacity group-hover:opacity-100" />
                   </div>
-                  <div className="flex flex-col gap-2.5 p-6">
-                    <h3 className="font-heading text-sm font-semibold tracking-[0.2em] text-brand-text">
+                  <div className="flex flex-col gap-2.5 p-5">
+                    <h3 className="font-heading text-xs font-semibold tracking-[0.18em] text-brand-text">
                       {s.title}
                     </h3>
                     <p className="text-sm font-light leading-relaxed text-brand-muted">{s.text}</p>
                   </div>
                 </div>
               ))}
+
+              {/* Tile CTA — completa la retícula de 8 */}
+              <a
+                href={whatsappLink("Hola, necesito un servicio para mi vehículo")}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex flex-col items-start justify-between border border-brand-primary/40 bg-brand-surface2 p-6 transition-colors hover:border-brand-primary line-pattern"
+              >
+                <div>
+                  <p className="kicker">¿Otro servicio?</p>
+                  <h3 className="mt-3 font-heading text-lg font-semibold leading-snug tracking-[0.08em] text-brand-text">
+                    Cuéntanos qué necesita tu vehículo
+                  </h3>
+                </div>
+                <span className="mt-6 inline-flex items-center gap-2 font-heading text-xs font-semibold tracking-[0.2em] text-brand-accent transition-transform group-hover:translate-x-1">
+                  ESCRÍBENOS →
+                </span>
+              </a>
             </div>
           </div>
         </section>
@@ -317,6 +371,99 @@ export default function Home() {
           </div>
         </div>
 
+        {/* ── FRANQUICIAS ── */}
+        <section id="franquicias" className="border-b border-brand-border px-6 py-24">
+          <div className="mx-auto max-w-6xl">
+            <div className="grid items-start gap-14 lg:grid-cols-[1.15fr_1fr]">
+              <div>
+                <p className="kicker">Franquicias</p>
+                <h2 className="mt-4 text-3xl font-bold leading-[1.15] text-brand-text sm:text-4xl">
+                  Únete a la{" "}
+                  <span className="text-brand-accent">Familia JAURE</span>
+                </h2>
+                <div className="brand-line mt-6" />
+                <p className="mt-7 font-light leading-relaxed text-brand-muted">
+                  Convierte tu inversión en un motor de éxito. Desde el año
+                  2000 nos hemos consolidado como líderes en el servicio
+                  integral de llantas, mantenimiento preventivo y atención
+                  automotriz rápida. Hoy te ofrecemos replicar nuestro éxito
+                  con un modelo de negocio estandarizado, altamente rentable y
+                  diseñado para dominar el creciente mercado automotriz en
+                  México.
+                </p>
+
+                <div className="mt-10 flex flex-col gap-6">
+                  {FRANQUICIA_VENTAJAS.map((v, i) => (
+                    <div key={v.title} className="flex gap-5">
+                      <span className="font-heading text-2xl font-bold text-brand-primary/50">
+                        {String(i + 1).padStart(2, "0")}
+                      </span>
+                      <div>
+                        <h3 className="font-heading text-xs font-semibold tracking-[0.22em] text-brand-text">
+                          {v.title.toUpperCase()}
+                        </h3>
+                        <p className="mt-2 text-sm font-light leading-relaxed text-brand-muted">{v.text}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-10 border border-brand-border bg-brand-surface p-7">
+                  <h3 className="font-heading text-xs font-semibold tracking-[0.26em] text-brand-text">
+                    TU FRANQUICIA INCLUYE
+                  </h3>
+                  <ul className="mt-5 grid gap-2.5 text-sm font-light text-brand-muted sm:grid-cols-2">
+                    {FRANQUICIA_INCLUYE.map((item) => (
+                      <li key={item} className="flex items-start gap-2.5">
+                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 bg-brand-primary" />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-6">
+                <div className="relative aspect-[4/5] w-full overflow-hidden">
+                  <Image
+                    src="/fotos/fachada2.jpg"
+                    alt="Sucursal JAURE"
+                    fill
+                    sizes="(max-width: 1024px) 100vw, 45vw"
+                    className="object-cover"
+                  />
+                  <div className="angular absolute -bottom-0 left-0 h-2.5 w-32 bg-brand-primary" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-px border border-brand-border bg-brand-border">
+                  {FRANQUICIA_NUMEROS.map((n) => (
+                    <div key={n.label} className="flex flex-col gap-1.5 bg-brand-surface p-5">
+                      <span className="font-heading text-lg font-bold tracking-wide text-brand-accent">
+                        {n.value}
+                      </span>
+                      <span className="text-[11px] leading-snug text-brand-muted">{n.label}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <p className="text-xs font-light leading-relaxed text-brand-muted">
+                  Alto potencial en Hidalgo, Querétaro, Puebla, Tlaxcala,
+                  Estado de México y CDMX. Modelo de entrega llave en mano.
+                </p>
+
+                <a
+                  href={whatsappLink("Hola, quiero información sobre las franquicias JAURE")}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="angular inline-flex items-center justify-center gap-2 bg-brand-primary px-8 py-4 font-heading text-sm font-semibold tracking-[0.16em] text-white shadow-lg shadow-brand-primary/25 transition-all hover:scale-[1.02] hover:opacity-90"
+                >
+                  Solicitar Información
+                </a>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* ── INSTALACIONES ── */}
         <section id="instalaciones" className="border-b border-brand-border px-6 py-24">
           <div className="mx-auto max-w-6xl">
@@ -333,18 +480,18 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="mt-12 grid grid-cols-2 gap-4 lg:grid-cols-4">
-              {GALERIA.map((g, i) => (
+            <div className="mt-12 grid grid-cols-2 gap-4 sm:grid-cols-3">
+              {GALERIA.map((g) => (
                 <div
                   key={g.src}
-                  className={`relative overflow-hidden ${g.wide ? "col-span-2 aspect-[16/9] lg:row-span-2 lg:aspect-auto" : "aspect-square"}`}
+                  className={`relative overflow-hidden ${g.wide ? "col-span-2 row-span-2 aspect-auto" : "aspect-square"}`}
                 >
                   <Image
                     src={g.src}
                     alt={g.alt}
                     fill
+                    sizes={g.wide ? "(max-width: 640px) 100vw, 66vw" : "(max-width: 640px) 50vw, 33vw"}
                     className="object-cover transition-transform duration-500 hover:scale-105"
-                    sizes={g.wide ? "(max-width: 1024px) 100vw, 50vw" : "(max-width: 1024px) 50vw, 25vw"}
                   />
                 </div>
               ))}
@@ -383,13 +530,13 @@ export default function Home() {
         {/* ── CTA FINAL ── */}
         <section className="relative overflow-hidden px-6 py-32">
           <Image
-            src="/fotos/carretera.jpg"
+            src="/fotos/fachada.jpg"
             alt=""
             fill
             sizes="100vw"
-            className="object-cover object-center opacity-50"
+            className="object-cover object-center opacity-30"
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-brand-bg via-brand-bg/60 to-brand-bg" />
+          <div className="absolute inset-0 bg-gradient-to-b from-brand-bg via-brand-bg/75 to-brand-bg" />
           <div className="relative z-10 mx-auto flex max-w-3xl flex-col items-center gap-7 text-center">
             <p className="kicker">Avanzar es nuestra naturaleza</p>
             <h2 className="text-4xl font-bold leading-tight text-brand-text sm:text-5xl">

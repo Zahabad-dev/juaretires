@@ -28,7 +28,7 @@ export default function Header() {
         <nav className="hidden items-center gap-8 font-heading text-xs font-semibold tracking-[0.18em] text-brand-silver sm:flex">
           <a href="#nosotros" className="transition-colors hover:text-brand-text">Nosotros</a>
           <a href="#servicios" className="transition-colors hover:text-brand-text">Servicios</a>
-          <a href="#instalaciones" className="transition-colors hover:text-brand-text">Instalaciones</a>
+          <a href="#franquicias" className="transition-colors hover:text-brand-text">Franquicias</a>
           <a href="#contacto" className="transition-colors hover:text-brand-text">Contacto</a>
           <a
             href={whatsappLink("Hola, quiero una cotización")}

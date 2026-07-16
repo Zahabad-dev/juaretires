@@ -5,6 +5,7 @@ import { whatsappLink } from "@/lib/whatsapp";
 const SERVICIOS = [
   "Diagnóstico",
   "Mantenimiento",
+  "Cambio de Aceite",
   "Llantas",
   "Suspensión",
   "Frenos",
@@ -53,6 +54,16 @@ export default function Footer() {
 
         <div>
           <h4 className="font-heading text-xs font-semibold tracking-[0.3em] text-brand-text">
+            Franquicias
+          </h4>
+          <div className="brand-line mt-3" />
+          <a
+            href="#franquicias"
+            className="mt-4 inline-block text-sm text-brand-muted transition-colors hover:text-brand-accent"
+          >
+            Únete a la Familia JAURE →
+          </a>
+          <h4 className="mt-9 font-heading text-xs font-semibold tracking-[0.3em] text-brand-text">
             Legal
           </h4>
           <div className="brand-line mt-3" />
