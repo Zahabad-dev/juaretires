@@ -356,7 +356,7 @@
   },
   {
    "parameters": {
-    "jsCode": "// LIMPIAR TRAZA DE HERRAMIENTAS\nfunction stripUsedTools(text) {\n  let result = text;\n  let safety = 0;\n  while (result.includes('[Used tools:') && safety < 10) {\n    safety++;\n    const start = result.indexOf('[Used tools:');\n    if (start === -1) break;\n    let depth = 0, end = start;\n    for (let i = start; i < result.length; i++) {\n      const ch = result[i];\n      if (ch === '[' || ch === '{') depth++;\n      else if (ch === ']' || ch === '}') { depth--; if (depth === 0) { end = i + 1; break; } }\n    }\n    result = (result.slice(0, start) + result.slice(end)).trimStart();\n  }\n  return result.trim();\n}\n\nconst UMBRAL_PRESUPUESTO = 20000;\nconst VALOR_POR_PIEZA    = 2500;\nconst UMBRAL_PIEZAS      = 8;\n\nconst rawOutput     = $input.first().json.output || '';\nconst output        = stripUsedTools(rawOutput);\nconst clientMessage = $('Combinar Mensajes').first().json.Mensaje || '';\nconst waId          = $('Combinar Mensajes').first().json.Telefono;\nconst clientName    = $('Combinar Mensajes').first().json.Nombre || 'Cliente';\nconst numNegocio    = $('Combinar Mensajes').first().json.NumeroNegocio;\n\n// -- DETECTAR NUMERO DE PIEZAS/LLANTAS (cliente + bot) --\nfunction detectarPiezas(texto) {\n  let max = 0;\n  const patrones = [\n    /(necesito|ocupo|quiero|busco|son|para)\\s+(\\d+)\\s*(llantas?|piezas?|neum[aá]ticos?|rines?|juegos?)/gi,\n    /(\\d+)\\s*(llantas?|piezas?|neum[aá]ticos?|rines?)/gi,\n    /flotilla\\s+de\\s+(\\d+)/gi,\n    /(\\d+)\\s*(camionetas?|camiones?|autos?|coches?|veh[ií]culos?|unidades?)/gi,\n  ];\n  for (const p of patrones) {\n    const matches = [...texto.matchAll(p)];\n    for (const m of matches) {\n      const nums = m[0].match(/\\d+/g);\n      if (nums) {\n        const total = nums.reduce((s, n) => s + parseInt(n), 0);\n        if (total > max) max = total;\n      }\n    }\n  }\n  return max;\n}\n\nconst piezasCliente = detectarPiezas(clientMessage);\nconst piezasBot     = detectarPiezas(output);\nconst piezasDetectadas = Math.max(piezasCliente, piezasBot);\nconst presupuestoEstimadoGrupo = piezasDetectadas * VALOR_POR_PIEZA;\nconst grupoGrande = piezasDetectadas >= UMBRAL_PIEZAS;\n\n// -- INTENCION DE COMPRA --\nconst tieneMarkerCompra = output.includes('[INTENCION_COMPRA]');\nconst keywordsCompra = /\\b(quiero comprar|quiero apartar|me lo llevo|c[oó]mo pago|c[oó]mo aparto|cu[aá]nto (sale|cuesta|est[aá]|me queda|nos sale|salen|cuestan)|qu[eé] precio|hay disponibilidad|tienen disponible|est[aá] disponible|tienen en stock|manejan la medida|tienen la medida|meses sin intereses|pago con tarjeta|aceptan tarjeta|dan factura|ocupo factura|necesito factura|me cotizas|cotizaci[oó]n|quiero cotizar|me mandas info|m[aá]ndame info|env[ií]ame info|me interesa|s[ií] me interesa|quiero saber m[aá]s|d[aá]me m[aá]s info|cu[aá]ndo puedo ir|puedo ir hoy|a qu[eé] hora abren|hacen alineaci[oó]n|hacen balanceo|cambio de aceite|revisan frenos|amortiguadores|suspensi[oó]n|ponchadura|se me ponch[oó]|llanta ponchada|refacci[oó]n|medida \\d|r1[3-9]|r2[0-2]|\\d{3}\\/\\d{2})\\b/i;\nconst tieneKeywordCompra = keywordsCompra.test(clientMessage);\nconst intencionCompra = tieneMarkerCompra || tieneKeywordCompra;\n\n// -- PRESUPUESTO ALTO --\nconst tieneMarkerPresupuesto = output.includes('[PRESUPUESTO_ALTO]');\nlet isHighBudgetFromMessage = false;\n\nconst matchesMil = [...clientMessage.matchAll(/(\\d+[\\d,\\.]*)[\\s ]*(mil|k)\\b/gi)];\nfor (const m of matchesMil) {\n  const amount = parseFloat(m[1].replace(/[,]/g, '')) * 1000;\n  if (amount >= UMBRAL_PRESUPUESTO) { isHighBudgetFromMessage = true; break; }\n}\nif (!isHighBudgetFromMessage) {\n  const matchesMillon = [...clientMessage.matchAll(/(\\d+[\\d,\\.]*)[\\s ]*(millones?)/gi)];\n  for (const m of matchesMillon) {\n    const amount = parseFloat(m[1].replace(/[,]/g, '')) * 1000000;\n    if (amount >= UMBRAL_PRESUPUESTO) { isHighBudgetFromMessage = true; break; }\n  }\n}\nif (!isHighBudgetFromMessage) {\n  const matchesDirecto = [...clientMessage.matchAll(/[$]?([\\d]{1,3}(?:[,\\.][\\d]{3})+|[\\d]{5,})/g)];\n  for (const m of matchesDirecto) {\n    const amount = parseFloat(m[1].replace(/[,\\.]/g, '').replace(/\\.(\\d{2})$/, ''));\n    if (amount >= UMBRAL_PRESUPUESTO) { isHighBudgetFromMessage = true; break; }\n  }\n}\nconst keywordsFlotilla = /\\b(flotilla|flota|empresa|corporativo|mayoreo|medio mayoreo|camiones|tr[aá]iler|plataforma|reparto|log[ií]stica|transporte)\\b/i;\nconst presupuestoAlto = tieneMarkerPresupuesto || isHighBudgetFromMessage || keywordsFlotilla.test(clientMessage) || grupoGrande;\n\n// -- QUIERE HABLAR CON ASESOR --\nconst tieneMarkerAsesor = output.includes('[QUIERE_ASESOR]');\nconst keywordsAsesor = /\\b(quiero hablar con (un |una )?(asesor|asesora|persona|humano|alguien)|hablar con (un |una )?(asesor|asesora|persona|alguien|humano)|me comunicas con|me comunica con|p[aá]same con|necesito (un |una )?(asesor|asesora|persona|humano)|quiero (un |una )?(asesor|asesora|agente)|asesor(a)? por favor|agente por favor|persona real|alguien de verdad|hablar con alguien)\\b/i;\nconst quiereAsesor = tieneMarkerAsesor || keywordsAsesor.test(clientMessage);\n\n// -- CANSADO / FRUSTRADO DEL BOT --\nconst tieneMarkerCansado = output.includes('[CANSADO_BOT]');\nconst keywordsCansado = /\\b(no me (est[aá]s |eres )?(ayudando|sirviendo|entendiendo|resolviendo)|no entiendes|no me entiendes|no sirves|eres (un |)bot|esto no (sirve|funciona|me ayuda)|no funciona(s)?|in[uú]til|no (me )resuelves|ya me cans[eé]|me est[aá]s cansando|me desesper[eé]|harto del bot|harta del bot|est[aá]s en loop|sigues repitiendo|siempre lo mismo|no contestas lo que pregunto)\\b/i;\nconst cansadoBot = tieneMarkerCansado || keywordsCansado.test(clientMessage);\n\n// -- BOT RESPONDIO CON FRASE DE ESCALACION --\nconst frasesEscalacionBot = /(asesor(a)? (se pondr[aá]|te pondr[aá]|pondr[aá]) en contacto|asesor(a)? te (contactar[aá]n?|atiende|atender[aá]n?|ayudar[aá]n?|llamar[aá]n?|enviar[aá]n?|env[ií]e)|te contactar[aá]n?|nos pondremos en contacto|nos comunicaremos contigo|un(a)? (asesora|asesor) te (llamar[aá]n?|contactar[aá]n?|atender[aá]n?|enviar[aá]n?|env[ií]e|aparta)|pasar(le|te|los)? (tus |los |la )?(datos|informaci[oó]n|solicitud)|voy a pasar(te|los|le)?|te dar[aá]n? seguimiento|coordinar(emos)? (una )?(llamada|cita|visita)|asesor(a)? personal te|nuestro equipo te (contactar[aá]|llamar[aá]|atender[aá])|para (confirmar|cerrar|apartar) (los detalles|tu compra|tus piezas|tu pedido))/i;\nconst botEscalo = frasesEscalacionBot.test(output);\n\n// -- RESULTADO COMBINADO --\nconst necesitaAsesor = intencionCompra || presupuestoAlto || quiereAsesor || cansadoBot || botEscalo;\n\nconst motivo = presupuestoAlto\n               ? (grupoGrande ? 'FLOTILLA/MAYOREO (' + piezasDetectadas + ' piezas ~ $' + presupuestoEstimadoGrupo.toLocaleString() + ')' : 'PRESUPUESTO ALTO')\n             : intencionCompra ? 'INTENCION DE COMPRA'\n             : quiereAsesor    ? 'QUIERE HABLAR CON ASESOR'\n             : cansadoBot      ? 'CANSADO DEL BOT'\n             : botEscalo       ? 'BOT ESCALO EN RESPUESTA'\n             : '';\n\n// -- ROTACION 3 ASESORES (round-robin a2 -> a3 -> a4) --\nconst staticData = $getWorkflowStaticData('global');\nconst CICLO = ['a2', 'a3', 'a4'];\nconst turnoActual = staticData.turno_asesor || 'a2';\nif ((intencionCompra || quiereAsesor || cansadoBot || botEscalo) && !presupuestoAlto) {\n  const idx = CICLO.indexOf(turnoActual);\n  staticData.turno_asesor = CICLO[(idx + 1) % CICLO.length];\n}\n\n// -- LIMPIAR MARCADORES --\nconst mensajeLimpio = output\n  .replace('[INTENCION_COMPRA]', '')\n  .replace('[PRESUPUESTO_ALTO]', '')\n  .replace('[QUIERE_ASESOR]', '')\n  .replace('[CANSADO_BOT]', '')\n  .trim();\n\nreturn [{\n  json: {\n    output:                mensajeLimpio,\n    mensaje_limpio:        mensajeLimpio,\n    necesita_asesor:       necesitaAsesor,\n    intencion_compra:      intencionCompra,\n    presupuesto_alto:      presupuestoAlto,\n    quiere_asesor:         quiereAsesor,\n    cansado_bot:           cansadoBot,\n    bot_escalo:            botEscalo,\n    grupo_grande:          grupoGrande,\n    piezas_detectadas:     piezasDetectadas,\n    presupuesto_estimado:  presupuestoEstimadoGrupo,\n    motivo_alerta:         motivo,\n    turno_asesor:          turnoActual,\n    wa_id:                 waId,\n    cliente_nombre:        clientName,\n    cliente_mensaje:       clientMessage,\n    numero_negocio:        numNegocio\n  }\n}];"
+    "jsCode": "// LIMPIAR TRAZA DE HERRAMIENTAS\nfunction stripUsedTools(text) {\n  let result = text;\n  let safety = 0;\n  while (result.includes('[Used tools:') && safety < 10) {\n    safety++;\n    const start = result.indexOf('[Used tools:');\n    if (start === -1) break;\n    let depth = 0, end = start;\n    for (let i = start; i < result.length; i++) {\n      const ch = result[i];\n      if (ch === '[' || ch === '{') depth++;\n      else if (ch === ']' || ch === '}') { depth--; if (depth === 0) { end = i + 1; break; } }\n    }\n    result = (result.slice(0, start) + result.slice(end)).trimStart();\n  }\n  return result.trim();\n}\n\nconst UMBRAL_PRESUPUESTO = 20000;\nconst VALOR_POR_PIEZA    = 2500;\nconst UMBRAL_PIEZAS      = 8;\n\nconst rawOutput     = $input.first().json.output || '';\nconst output        = stripUsedTools(rawOutput);\nconst clientMessage = $('Combinar Mensajes').first().json.Mensaje || '';\nconst waId          = $('Combinar Mensajes').first().json.Telefono;\nconst clientName    = $('Combinar Mensajes').first().json.Nombre || 'Cliente';\nconst numNegocio    = $('Combinar Mensajes').first().json.NumeroNegocio;\n\n// -- DETECTAR NUMERO DE PIEZAS/LLANTAS (cliente + bot) --\nfunction detectarPiezas(texto) {\n  let max = 0;\n  const patrones = [\n    /(necesito|ocupo|quiero|busco|son|para)\\s+(\\d+)\\s*(llantas?|piezas?|neum[aá]ticos?|rines?|juegos?)/gi,\n    /(\\d+)\\s*(llantas?|piezas?|neum[aá]ticos?|rines?)/gi,\n    /flotilla\\s+de\\s+(\\d+)/gi,\n    /(\\d+)\\s*(camionetas?|camiones?|autos?|coches?|veh[ií]culos?|unidades?)/gi,\n  ];\n  for (const p of patrones) {\n    const matches = [...texto.matchAll(p)];\n    for (const m of matches) {\n      const nums = m[0].match(/\\d+/g);\n      if (nums) {\n        const total = nums.reduce((s, n) => s + parseInt(n), 0);\n        if (total > max) max = total;\n      }\n    }\n  }\n  return max;\n}\n\nconst piezasCliente = detectarPiezas(clientMessage);\nconst piezasBot     = detectarPiezas(output);\nconst piezasDetectadas = Math.max(piezasCliente, piezasBot);\nconst presupuestoEstimadoGrupo = piezasDetectadas * VALOR_POR_PIEZA;\nconst grupoGrande = piezasDetectadas >= UMBRAL_PIEZAS;\n\n// -- INTENCION DE COMPRA --\nconst tieneMarkerCompra = output.includes('[INTENCION_COMPRA]');\nconst keywordsCompra = /\\b(quiero comprar|quiero apartar|me lo llevo|c[oó]mo pago|c[oó]mo aparto|cu[aá]nto (sale|cuesta|est[aá]|me queda|nos sale|salen|cuestan)|qu[eé] precio|hay disponibilidad|tienen disponible|est[aá] disponible|tienen en stock|manejan la medida|tienen la medida|meses sin intereses|pago con tarjeta|aceptan tarjeta|dan factura|ocupo factura|necesito factura|me cotizas|cotizaci[oó]n|quiero cotizar|me mandas info|m[aá]ndame info|env[ií]ame info|me interesa|s[ií] me interesa|quiero saber m[aá]s|d[aá]me m[aá]s info|cu[aá]ndo puedo ir|puedo ir hoy|a qu[eé] hora abren|hacen alineaci[oó]n|hacen balanceo|cambio de aceite|revisan frenos|amortiguadores|suspensi[oó]n|ponchadura|se me ponch[oó]|llanta ponchada|refacci[oó]n|medida \\d|r1[3-9]|r2[0-2]|\\d{3}\\/\\d{2})\\b/i;\nconst tieneKeywordCompra = keywordsCompra.test(clientMessage);\nconst intencionCompra = tieneMarkerCompra || tieneKeywordCompra;\n\n// -- PRESUPUESTO ALTO --\nconst tieneMarkerPresupuesto = output.includes('[PRESUPUESTO_ALTO]');\nlet isHighBudgetFromMessage = false;\n\nconst matchesMil = [...clientMessage.matchAll(/(\\d+[\\d,\\.]*)[\\s ]*(mil|k)\\b/gi)];\nfor (const m of matchesMil) {\n  const amount = parseFloat(m[1].replace(/[,]/g, '')) * 1000;\n  if (amount >= UMBRAL_PRESUPUESTO) { isHighBudgetFromMessage = true; break; }\n}\nif (!isHighBudgetFromMessage) {\n  const matchesMillon = [...clientMessage.matchAll(/(\\d+[\\d,\\.]*)[\\s ]*(millones?)/gi)];\n  for (const m of matchesMillon) {\n    const amount = parseFloat(m[1].replace(/[,]/g, '')) * 1000000;\n    if (amount >= UMBRAL_PRESUPUESTO) { isHighBudgetFromMessage = true; break; }\n  }\n}\nif (!isHighBudgetFromMessage) {\n  const matchesDirecto = [...clientMessage.matchAll(/[$]?([\\d]{1,3}(?:[,\\.][\\d]{3})+|[\\d]{5,})/g)];\n  for (const m of matchesDirecto) {\n    const amount = parseFloat(m[1].replace(/[,\\.]/g, '').replace(/\\.(\\d{2})$/, ''));\n    if (amount >= UMBRAL_PRESUPUESTO) { isHighBudgetFromMessage = true; break; }\n  }\n}\nconst keywordsFlotilla = /\\b(flotilla|flota|empresa|corporativo|mayoreo|medio mayoreo|camiones|tr[aá]iler|plataforma|reparto|log[ií]stica|transporte)\\b/i;\nconst presupuestoAlto = tieneMarkerPresupuesto || isHighBudgetFromMessage || keywordsFlotilla.test(clientMessage) || grupoGrande;\n\n// -- QUIERE HABLAR CON ASESOR --\nconst tieneMarkerAsesor = output.includes('[QUIERE_ASESOR]');\nconst keywordsAsesor = /\\b(quiero hablar con (un |una )?(asesor|asesora|persona|humano|alguien)|hablar con (un |una )?(asesor|asesora|persona|alguien|humano)|me comunicas con|me comunica con|p[aá]same con|necesito (un |una )?(asesor|asesora|persona|humano)|quiero (un |una )?(asesor|asesora|agente)|asesor(a)? por favor|agente por favor|persona real|alguien de verdad|hablar con alguien)\\b/i;\nconst quiereAsesor = tieneMarkerAsesor || keywordsAsesor.test(clientMessage);\n\n// -- CANSADO / FRUSTRADO DEL BOT --\nconst tieneMarkerCansado = output.includes('[CANSADO_BOT]');\nconst keywordsCansado = /\\b(no me (est[aá]s |eres )?(ayudando|sirviendo|entendiendo|resolviendo)|no entiendes|no me entiendes|no sirves|eres (un |)bot|esto no (sirve|funciona|me ayuda)|no funciona(s)?|in[uú]til|no (me )resuelves|ya me cans[eé]|me est[aá]s cansando|me desesper[eé]|harto del bot|harta del bot|est[aá]s en loop|sigues repitiendo|siempre lo mismo|no contestas lo que pregunto)\\b/i;\nconst cansadoBot = tieneMarkerCansado || keywordsCansado.test(clientMessage);\n\n// -- BOT RESPONDIO CON FRASE DE ESCALACION --\nconst frasesEscalacionBot = /(asesor(a)? (se pondr[aá]|te pondr[aá]|pondr[aá]) en contacto|asesor(a)? te (contactar[aá]n?|atiende|atender[aá]n?|ayudar[aá]n?|llamar[aá]n?|enviar[aá]n?|env[ií]e)|te contactar[aá]n?|nos pondremos en contacto|nos comunicaremos contigo|un(a)? (asesora|asesor) te (llamar[aá]n?|contactar[aá]n?|atender[aá]n?|enviar[aá]n?|env[ií]e|aparta)|pasar(le|te|los)? (tus |los |la )?(datos|informaci[oó]n|solicitud)|voy a pasar(te|los|le)?|te dar[aá]n? seguimiento|coordinar(emos)? (una )?(llamada|cita|visita)|asesor(a)? personal te|nuestro equipo te (contactar[aá]|llamar[aá]|atender[aá])|para (confirmar|cerrar|apartar) (los detalles|tu compra|tus piezas|tu pedido))/i;\nconst botEscalo = frasesEscalacionBot.test(output);\n\n// -- RESULTADO COMBINADO --\nconst necesitaAsesor = intencionCompra || presupuestoAlto || quiereAsesor || cansadoBot || botEscalo;\n\nconst motivo = presupuestoAlto\n               ? (grupoGrande ? 'FLOTILLA/MAYOREO (' + piezasDetectadas + ' piezas ~ $' + presupuestoEstimadoGrupo.toLocaleString() + ')' : 'PRESUPUESTO ALTO')\n             : intencionCompra ? 'INTENCION DE COMPRA'\n             : quiereAsesor    ? 'QUIERE HABLAR CON ASESOR'\n             : cansadoBot      ? 'CANSADO DEL BOT'\n             : botEscalo       ? 'BOT ESCALO EN RESPUESTA'\n             : '';\n\n// -- ROTACION 3 ASESORES (round-robin a2 -> a3 -> a4) --\nconst staticData = $getWorkflowStaticData('global');\nconst CICLO = ['a1', 'a2', 'a3', 'a4', 'a5'];\nconst turnoActual = staticData.turno_asesor || 'a1';\nif (necesitaAsesor) {\n  const idx = CICLO.indexOf(turnoActual);\n  staticData.turno_asesor = CICLO[(idx + 1) % CICLO.length];\n}\n\n// -- LIMPIAR MARCADORES --\nconst mensajeLimpio = output\n  .replace('[INTENCION_COMPRA]', '')\n  .replace('[PRESUPUESTO_ALTO]', '')\n  .replace('[QUIERE_ASESOR]', '')\n  .replace('[CANSADO_BOT]', '')\n  .trim();\n\nreturn [{\n  json: {\n    output:                mensajeLimpio,\n    mensaje_limpio:        mensajeLimpio,\n    necesita_asesor:       necesitaAsesor,\n    intencion_compra:      intencionCompra,\n    presupuesto_alto:      presupuestoAlto,\n    quiere_asesor:         quiereAsesor,\n    cansado_bot:           cansadoBot,\n    bot_escalo:            botEscalo,\n    grupo_grande:          grupoGrande,\n    piezas_detectadas:     piezasDetectadas,\n    presupuesto_estimado:  presupuestoEstimadoGrupo,\n    motivo_alerta:         motivo,\n    turno_asesor:          turnoActual,\n    wa_id:                 waId,\n    cliente_nombre:        clientName,\n    cliente_mensaje:       clientMessage,\n    numero_negocio:        numNegocio\n  }\n}];"
    },
    "type": "n8n-nodes-base.code",
    "typeVersion": 2,
@@ -642,41 +642,32 @@
   },
   {
    "parameters": {
-    "conditions": {
-     "options": {
-      "caseSensitive": true,
-      "leftValue": "",
-      "typeValidation": "strict",
-      "version": 2
-     },
-     "conditions": [
-      {
-       "id": "bs-vip-cond-001",
-       "leftValue": "={{ $('Detectar Alerta Asesor1').first().json.presupuesto_alto }}",
-       "rightValue": true,
-       "operator": {
-        "type": "boolean",
-        "operation": "true"
-       }
-      }
-     ],
-     "combinator": "and"
-    },
-    "options": {}
-   },
-   "type": "n8n-nodes-base.if",
-   "typeVersion": 2.2,
-   "position": [
-    16960,
-    7232
-   ],
-   "id": "d7fe772e-4dcf-4624-b155-7d8ab32f3203",
-   "name": "IF Presupuesto Alto? BS"
-  },
-  {
-   "parameters": {
     "rules": {
      "values": [
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": true,
+         "leftValue": "",
+         "typeValidation": "strict",
+         "version": 2
+        },
+        "conditions": [
+         {
+          "id": "turno-a1",
+          "leftValue": "={{ $('Detectar Alerta Asesor1').first().json.turno_asesor }}",
+          "rightValue": "a1",
+          "operator": {
+           "type": "string",
+           "operation": "equals"
+          }
+         }
+        ],
+        "combinator": "and"
+       },
+       "renameOutput": true,
+       "outputKey": "asesor1"
+      },
       {
        "conditions": {
         "options": {
@@ -724,12 +715,36 @@
        },
        "renameOutput": true,
        "outputKey": "asesor3"
+      },
+      {
+       "conditions": {
+        "options": {
+         "caseSensitive": true,
+         "leftValue": "",
+         "typeValidation": "strict",
+         "version": 2
+        },
+        "conditions": [
+         {
+          "id": "turno-a4",
+          "leftValue": "={{ $('Detectar Alerta Asesor1').first().json.turno_asesor }}",
+          "rightValue": "a4",
+          "operator": {
+           "type": "string",
+           "operation": "equals"
+          }
+         }
+        ],
+        "combinator": "and"
+       },
+       "renameOutput": true,
+       "outputKey": "asesor4"
       }
      ]
     },
     "options": {
      "fallbackOutput": "extra",
-     "renameFallbackOutput": "asesor4"
+     "renameFallbackOutput": "asesor5"
     }
    },
    "type": "n8n-nodes-base.switch",
@@ -745,8 +760,8 @@
    "parameters": {
     "fromEmail": "{{SMTP_FROM_EMAIL}}",
     "toEmail": "{{PUSHOVER_ASESOR1}}",
-    "subject": "=💎 VIP/Flotilla: {{ $('Detectar Alerta Asesor1').first().json.motivo_alerta }} - {{ $('Detectar Alerta Asesor1').first().json.cliente_nombre || 'Sin nombre' }} | JAURE",
-    "html": "=<div style=\"font-family:Arial,sans-serif;max-width:600px;margin:0 auto;\">\n  <div style=\"background:#0033CC;padding:20px;border-radius:8px 8px 0 0;\">\n    <h2 style=\"color:#fff;margin:0;\">🔧 JAURE Ingeniería Automotriz — Cliente Requiere Atención</h2>\n  </div>\n\n  <div style=\"background:#f9f9f9;padding:20px;border-radius:0 0 8px 8px;border:1px solid #ddd;\">\n    <table style=\"width:100%;border-collapse:collapse;\">\n      \n      \n      <tr style=\"background:#fff3cd;\">\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">💰 Motivo VIP</td>\n        <td style=\"padding:10px;color:#222;font-weight:bold;\">\n          {{ $('Detectar Alerta Asesor1').first().json.motivo_alerta }}\n        </td>\n      </tr>\n\n      \n      <tr style=\"background:#e8f5e9;border-left:4px solid #43a047;\">\n        <td style=\"padding:12px;font-weight:bold;color:#2e7d32;\">📋 Contexto</td>\n        <td style=\"padding:12px;color:#222;font-size:14px;line-height:1.5;\">\n          {{ $('Generar Resumen').first().json.choices[0].message.content || 'Sin resumen disponible' }}\n        </td>\n      </tr>\n\n      <tr style=\"background:#f0f0f0;\">\n        <td style=\"padding:10px;font-weight:bold;color:#555;width:38%;\">👤 Nombre</td>\n        <td style=\"padding:10px;color:#222;\">\n          {{ $('Detectar Alerta Asesor1').first().json.cliente_nombre || '—' }}\n        </td>\n      </tr>\n\n      <tr>\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">📱 WhatsApp cliente</td>\n        <td style=\"padding:10px;color:#222;\">\n          <a href=\"https://wa.me/{{ $('Detectar Alerta Asesor1').first().json.wa_id }}\"\n             style=\"color:#25D366;font-weight:bold;text-decoration:none;\"\n             target=\"_blank\">\n             {{ $('Detectar Alerta Asesor1').first().json.wa_id }}\n          </a>\n        </td>\n      </tr>\n\n      <tr style=\"background:#f0f0f0;\">\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">🏢 Número receptor</td>\n        <td style=\"padding:10px;color:#222;\">\n          {{ $('Detectar Alerta Asesor1').first().json.numero_negocio }}\n        </td>\n      </tr>\n\n      <tr>\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">💬 Último mensaje</td>\n        <td style=\"padding:10px;color:#222;\">\n          {{ $('Detectar Alerta Asesor1').first().json.cliente_mensaje }}\n        </td>\n      </tr>\n\n      <tr style=\"background:#f0f0f0;\">\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">🤖 Respuesta del asistente</td>\n        <td style=\"padding:10px;color:#222;\">\n          {{ $('Detectar Alerta Asesor1').first().json.mensaje_limpio }}\n        </td>\n      </tr>\n\n      <tr>\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">📅 Fecha y hora</td>\n        <td style=\"padding:10px;color:#222;\">\n          {{ DateTime.now().setZone('America/Mexico_City').toFormat('dd/MM/yyyy HH:mm') }} (Hora México)\n        </td>\n      </tr>\n\n    </table>\n\n    <div style=\"margin-top:20px;padding:15px;background:#d1ecf1;border-left:4px solid #17a2b8;border-radius:4px;\">\n      <strong>✈️ Atención requerida:</strong><br>\n      Este cliente necesita seguimiento por parte de un asesor de JAURE Agency.\n      El asistente virtual ha detectado intención de compra o requiere atención personalizada.\n      Contáctalo por WhatsApp lo antes posible.\n    </div>\n  </div>\n\n  <p style=\"font-size:11px;color:#aaa;text-align:center;margin-top:10px;\">\n    Notificación automática — JAURE Agency · Tulancingo, Hidalgo\n  </p>\n</div>",
+    "subject": "=🔔 Lead: {{ $('Detectar Alerta Asesor1').first().json.motivo_alerta }} - {{ $('Detectar Alerta Asesor1').first().json.cliente_nombre || 'Sin nombre' }} | JAURE",
+    "html": "=<div style=\"font-family:Arial,sans-serif;max-width:600px;margin:0 auto;\">\n  <div style=\"background:#0033CC;padding:20px;border-radius:8px 8px 0 0;\">\n    <h2 style=\"color:#fff;margin:0;\">🔧 JAURE Ingeniería Automotriz — Cliente Requiere Atención</h2>\n  </div>\n\n  <div style=\"background:#f9f9f9;padding:20px;border-radius:0 0 8px 8px;border:1px solid #ddd;\">\n    <table style=\"width:100%;border-collapse:collapse;\">\n      \n      \n      <tr style=\"background:#e8f5e9;border-left:4px solid #43a047;\">\n        <td style=\"padding:12px;font-weight:bold;color:#2e7d32;\">📋 Contexto</td>\n        <td style=\"padding:12px;color:#222;font-size:14px;line-height:1.5;\">\n          {{ $('Generar Resumen').first().json.choices[0].message.content || 'Sin resumen disponible' }}\n        </td>\n      </tr>\n\n      <tr style=\"background:#f0f0f0;\">\n        <td style=\"padding:10px;font-weight:bold;color:#555;width:38%;\">👤 Nombre</td>\n        <td style=\"padding:10px;color:#222;\">\n          {{ $('Detectar Alerta Asesor1').first().json.cliente_nombre || '—' }}\n        </td>\n      </tr>\n\n      <tr>\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">📱 WhatsApp cliente</td>\n        <td style=\"padding:10px;color:#222;\">\n          <a href=\"https://wa.me/{{ $('Detectar Alerta Asesor1').first().json.wa_id }}\"\n             style=\"color:#25D366;font-weight:bold;text-decoration:none;\"\n             target=\"_blank\">\n             {{ $('Detectar Alerta Asesor1').first().json.wa_id }}\n          </a>\n        </td>\n      </tr>\n\n      <tr style=\"background:#f0f0f0;\">\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">🏢 Número receptor</td>\n        <td style=\"padding:10px;color:#222;\">\n          {{ $('Detectar Alerta Asesor1').first().json.numero_negocio }}\n        </td>\n      </tr>\n\n      <tr>\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">💬 Último mensaje</td>\n        <td style=\"padding:10px;color:#222;\">\n          {{ $('Detectar Alerta Asesor1').first().json.cliente_mensaje }}\n        </td>\n      </tr>\n\n      <tr style=\"background:#f0f0f0;\">\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">🤖 Respuesta del asistente</td>\n        <td style=\"padding:10px;color:#222;\">\n          {{ $('Detectar Alerta Asesor1').first().json.mensaje_limpio }}\n        </td>\n      </tr>\n\n      <tr>\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">📅 Fecha y hora</td>\n        <td style=\"padding:10px;color:#222;\">\n          {{ DateTime.now().setZone('America/Mexico_City').toFormat('dd/MM/yyyy HH:mm') }} (Hora México)\n        </td>\n      </tr>\n\n    </table>\n\n    <div style=\"margin-top:20px;padding:15px;background:#d1ecf1;border-left:4px solid #17a2b8;border-radius:4px;\">\n      <strong>✈️ Atención requerida:</strong><br>\n      Este cliente necesita seguimiento por parte de un asesor de JAURE Agency.\n      El asistente virtual ha detectado intención de compra o requiere atención personalizada.\n      Contáctalo por WhatsApp lo antes posible.\n    </div>\n  </div>\n\n  <p style=\"font-size:11px;color:#aaa;text-align:center;margin-top:10px;\">\n    Notificación automática — JAURE Agency · Tulancingo, Hidalgo\n  </p>\n</div>",
     "options": {}
    },
    "type": "n8n-nodes-base.emailSend",
@@ -756,7 +771,7 @@
     7088
    ],
    "id": "a446c446-7748-4a0e-b6bc-c1bd9834009f",
-   "name": "PUSHOVER ASESOR VIP",
+   "name": "PUSHOVER ASESOR 1",
    "webhookId": "c6160b9a-d8b0-4fbc-b6ef-01209334b5e0",
    "credentials": {
     "smtp": {
@@ -818,7 +833,7 @@
     "promptType": "define",
     "text": "=Numero WhatsApp del cliente: {{ $('Combinar Mensajes').first().json.Telefono }}\nNombre en WhatsApp: {{ $('Combinar Mensajes').first().json.Nombre }}\nMensaje del cliente: {{ $('Combinar Mensajes').first().json.Mensaje }}\n\nINVENTARIO ACTUAL (datos en vivo del Google Sheet de JAURE):\n{{ $json.inventarioFormateado }}",
     "options": {
-     "systemMessage": "ROL\nEres el asistente de ventas de JAURE Ingenieria Automotriz, Centro Automotriz Integral (llantas nuevas y seminuevas, alineacion y balanceo por computadora, cambio de aceite, suspension, frenos, diagnostico y mantenimiento).\nTu objetivo es conseguir el nombre del cliente, la medida de su llanta o el modelo/anio de su vehiculo, el servicio que necesita, y conectarlo con un asesor para cerrar la venta.\nConoces el inventario en vivo. Si algo no esta en el inventario, no lo niegues: ofrecelo como pedido especial que un asesor cotiza el mismo dia.\n\nREGLA DE ORO: Cuando el cliente mencione medida de llanta + cantidad, o modelo de vehiculo + servicio, o pregunte precio, eso es senal de compra. Pide su nombre y empuja al cierre.\n\nESTRATEGIA DE CIERRE EN 3 PASOS\nPaso 1 - Primer mensaje: responde breve y humano, pregunta la medida de la llanta (esta en el costado, ej. 205/55 R16) o el modelo y anio del vehiculo.\nPaso 2 - Segundo mensaje: si el cliente da medida o vehiculo, muestra 1 opcion concreta del inventario con precio, pregunta cuantas piezas necesita y empuja la venta.\nPaso 3 - Tercer mensaje en adelante: si el cliente sigue preguntando, pide su nombre y empuja al cierre.\n\nEjemplo paso 3:\nPerfecto, 4 llantas 205/55 R16! Para que un asesor te confirme precio exacto y disponibilidad, me compartes tu nombre? Te escribe hoy mismo.\n\nSENALES DE CIERRE INMEDIATO\nCuando el cliente diga o pregunte alguna de estas cosas, ve directo al cierre:\n- Menciona medida de llanta + cantidad\n- Pregunta cuanto cuesta algo especifico\n- Pregunta por disponibilidad o stock\n- Menciona su vehiculo y un servicio (alineacion, frenos, suspension, aceite)\n- Pide factura o pregunta formas de pago\n\nRespuesta de cierre directa:\n[INTENCION_COMPRA] Claro que si! Me compartes tu nombre para que un asesor te confirme precio exacto y disponibilidad?\n\nCUANDO EL PRODUCTO NO ESTA EN EL INVENTARIO\nNo lo inventes. Pero no lo niegues, lo conseguimos sobre pedido. Ve directo al cierre:\nEsa medida la cotizamos sobre pedido. Me dices tu nombre y un asesor te manda opciones hoy mismo.\nNO vuelvas a preguntar lo mismo si el cliente ya pidio cotizacion antes.\n\nCUANDO EL PRODUCTO SI ESTA EN EL INVENTARIO\nUsa SOLO el precio que aparece en el INVENTARIO ACTUAL que recibes abajo. NUNCA inventes un precio.\nEjemplo: La llanta [marca/medida] esta en [precio EXACTO del inventario]. Me compartes tu nombre para que un asesor te aparte las piezas?\n\nHORARIO DE ATENCION HUMANA\nLunes a sabado de 9:00 AM a 6:00 PM hora de Mexico.\nFuera de horario: responde calido, di que un asesor le da seguimiento al iniciar horario y menciona los horarios.\n\nREGLA DE PRECIOS (MUY IMPORTANTE)\n- SOLO usa precios que aparezcan en el INVENTARIO ACTUAL que recibes en cada mensaje.\n- Si el producto NO esta en el inventario, NUNCA inventes un precio. Di: \"Eso lo cotizamos sobre pedido, un asesor te manda el precio exacto.\"\n- Si el producto SI esta en el inventario, usa el precio EXACTO tal cual aparece, no lo redondees ni lo modifiques.\n- NUNCA uses \"desde $X\" si ese precio no esta en el inventario.\n- Esta PROHIBIDO inventar, estimar o redondear precios.\n\nCOMO USAR EL INVENTARIO\nRecibiras el campo INVENTARIO ACTUAL con la existencia actualizada.\nUsalo cuando el cliente pregunte por medida, marca, precio o disponibilidad.\nNo inventes datos; si no conoces algo, comenta que un asesor lo atendera lo antes posible.\n\nSi el cliente pregunta de forma general:\n1. Intenta de forma calida obtener: medida de llanta o modelo/anio del vehiculo, servicio que necesita, cuantas piezas.\n2. Haz UNA pregunta: medida, vehiculo, cantidad o servicio.\n\nACCION AL PRIMER CONTACTO\nLlama a registrar_ticket antes de responder.\nEstado: Nuevo, Prioridad: MEDIA.\n\nACTUALIZACION DEL TICKET\nLlama a registrar_ticket cuando el cliente de: nombre, medida, vehiculo, cantidad, servicio o quiera comprar.\n\nHERRAMIENTAS\n1. consultar_faq: dudas de horarios, ubicacion, pagos, garantias, politicas\n2. registrar_ticket: primer contacto, actualizar datos, cotizacion, compra, escalacion\n\nDETECCION DE INTENCION DE COMPRA\nSi el cliente quiere comprar, apartar o pagar:\n[INTENCION_COMPRA]\n1. Llama a registrar_ticket (Prioridad: ALTA)\n2. Pide nombre si no lo tienes\n3. Di que un asesor le contacta para confirmar\n\nDETECCION DE PRESUPUESTO ALTO / FLOTILLAS\nSi menciona mas de 20,000 MXN, flotilla, empresa, mayoreo, camiones o 8+ llantas:\n[PRESUPUESTO_ALTO]\nDi que un asesor especializado en flotillas le contactara.\n\nFLOTILLAS Y MAYOREO = PRESUPUESTO ALTO\nCada llanta vale aprox 2,500 MXN. Si son 8 llantas o mas, es PRESUPUESTO ALTO automaticamente.\nEjemplos:\n- \"Necesito llantas para mi flotilla de 5 camionetas\" -> 20 llantas -> [PRESUPUESTO_ALTO]\n- \"Somos una empresa, ocupamos 30 llantas\" -> [PRESUPUESTO_ALTO]\n- \"Quiero 2 llantas\" -> flujo normal\n\nCuando detectes flotilla o mayoreo (8+ llantas):\n[PRESUPUESTO_ALTO]Excelente, para flotillas manejamos precios especiales. Me compartes tu nombre? {{ASESOR1_NOMBRE}}, nuestro asesor de flotillas, te contacta hoy.\n\nPROTOCOLO DE ESCALACION\nEscala si: no puedes resolver, problema con pago o garantia, cliente molesto, pide persona, urgencia (ponchadura en carretera).\n1. Pide nombre\n2. registrar_ticket (Estado: Escalado, Prioridad: ALTA)\n3. Un asesor te contactara en breve.\n\nESTILO\n- Maximo 3 lineas por mensaje\n- Una sola pregunta a la vez\n- Directo, calido, como vendedor de mostrador por WhatsApp\n- Emojis con moderacion\n- Sin asteriscos, hashtags ni markdown\n- Sin mencionar sistemas internos\n- No digas que eres bot\n- NUNCA repitas la misma pregunta que ya hiciste antes en la conversacion\n\nMARCADORES OBLIGATORIOS (NUNCA LOS OMITAS)\nCada vez que tu respuesta hable de asesor, contactar, seguimiento, apartado o cierre de venta, DEBES incluir el marcador correspondiente al INICIO de tu mensaje. Sin marcador, el sistema NO notifica al asesor y el cliente se queda sin atender.\n\nSIEMPRE pon el marcador cuando:\n- Mencionas que un asesor contactara al cliente -> [INTENCION_COMPRA]\n- El cliente pregunta precio, cuanto cuesta, disponibilidad -> [INTENCION_COMPRA]\n- Pides nombre para cerrar venta o pasar con asesor -> [INTENCION_COMPRA]\n- El cliente menciona medida + cantidad o vehiculo + servicio -> [INTENCION_COMPRA]\n- Flotilla, empresa, mayoreo, 8+ llantas, monto alto -> [PRESUPUESTO_ALTO]\n- El cliente pide hablar con persona/asesor -> [QUIERE_ASESOR]\n- El cliente esta frustrado o molesto con el bot -> [CANSADO_BOT]\n\nEjemplo CORRECTO:\nCliente: \"Cuanto salen 4 llantas 195/65 R15?\"\nBot: [INTENCION_COMPRA]La 195/65 R15 esta en $1,850 MXN por pieza. Para 4 piezas un asesor te confirma disponibilidad y te las aparta. Me compartes tu nombre?\n(IMPORTANTE: el precio DEBE salir del INVENTARIO, nunca lo inventes)\n\nEjemplo INCORRECTO (NUNCA hagas esto):\nCliente: \"Cuanto salen 4 llantas?\"\nBot: Voy a pasar tus datos para que un asesor te envie opciones.\n(FALTA el marcador [INTENCION_COMPRA] - el asesor NO recibe la alerta)\n\n*ULTIMA REGLA DE ORO\n-Siempre que vayas a mandar a una escalacion no se te olvide mencionar que se pasara a un asesor humano."
+     "systemMessage": "ROL\nEres el asistente de ventas de JAURE Ingenieria Automotriz, Centro Automotriz Integral (llantas nuevas y seminuevas, alineacion y balanceo por computadora, cambio de aceite, suspension, frenos, diagnostico y mantenimiento).\nTu objetivo es conseguir el nombre del cliente, la medida de su llanta o el modelo/anio de su vehiculo, el servicio que necesita, y conectarlo con un asesor para cerrar la venta.\nConoces el inventario en vivo. Si algo no esta en el inventario, no lo niegues: ofrecelo como pedido especial que un asesor cotiza el mismo dia.\n\nREGLA DE ORO: Cuando el cliente mencione medida de llanta + cantidad, o modelo de vehiculo + servicio, o pregunte precio, eso es senal de compra. Pide su nombre y empuja al cierre.\n\nESTRATEGIA DE CIERRE EN 3 PASOS\nPaso 1 - Primer mensaje: responde breve y humano, pregunta la medida de la llanta (esta en el costado, ej. 205/55 R16) o el modelo y anio del vehiculo.\nPaso 2 - Segundo mensaje: si el cliente da medida o vehiculo, muestra 1 opcion concreta del inventario con precio, pregunta cuantas piezas necesita y empuja la venta.\nPaso 3 - Tercer mensaje en adelante: si el cliente sigue preguntando, pide su nombre y empuja al cierre.\n\nEjemplo paso 3:\nPerfecto, 4 llantas 205/55 R16! Para que un asesor te confirme precio exacto y disponibilidad, me compartes tu nombre? Te escribe hoy mismo.\n\nSENALES DE CIERRE INMEDIATO\nCuando el cliente diga o pregunte alguna de estas cosas, ve directo al cierre:\n- Menciona medida de llanta + cantidad\n- Pregunta cuanto cuesta algo especifico\n- Pregunta por disponibilidad o stock\n- Menciona su vehiculo y un servicio (alineacion, frenos, suspension, aceite)\n- Pide factura o pregunta formas de pago\n\nRespuesta de cierre directa:\n[INTENCION_COMPRA] Claro que si! Me compartes tu nombre para que un asesor te confirme precio exacto y disponibilidad?\n\nCUANDO EL PRODUCTO NO ESTA EN EL INVENTARIO\nNo lo inventes. Pero no lo niegues, lo conseguimos sobre pedido. Ve directo al cierre:\nEsa medida la cotizamos sobre pedido. Me dices tu nombre y un asesor te manda opciones hoy mismo.\nNO vuelvas a preguntar lo mismo si el cliente ya pidio cotizacion antes.\n\nCUANDO EL PRODUCTO SI ESTA EN EL INVENTARIO\nUsa SOLO el precio que aparece en el INVENTARIO ACTUAL que recibes abajo. NUNCA inventes un precio.\nEjemplo: La llanta [marca/medida] esta en [precio EXACTO del inventario]. Me compartes tu nombre para que un asesor te aparte las piezas?\n\nHORARIO DE ATENCION HUMANA\nLunes a sabado de 9:00 AM a 6:00 PM hora de Mexico.\nFuera de horario: responde calido, di que un asesor le da seguimiento al iniciar horario y menciona los horarios.\n\nREGLA DE PRECIOS (MUY IMPORTANTE)\n- SOLO usa precios que aparezcan en el INVENTARIO ACTUAL que recibes en cada mensaje.\n- Si el producto NO esta en el inventario, NUNCA inventes un precio. Di: \"Eso lo cotizamos sobre pedido, un asesor te manda el precio exacto.\"\n- Si el producto SI esta en el inventario, usa el precio EXACTO tal cual aparece, no lo redondees ni lo modifiques.\n- NUNCA uses \"desde $X\" si ese precio no esta en el inventario.\n- Esta PROHIBIDO inventar, estimar o redondear precios.\n\nCOMO USAR EL INVENTARIO\nRecibiras el campo INVENTARIO ACTUAL con la existencia actualizada.\nUsalo cuando el cliente pregunte por medida, marca, precio o disponibilidad.\nNo inventes datos; si no conoces algo, comenta que un asesor lo atendera lo antes posible.\n\nSi el cliente pregunta de forma general:\n1. Intenta de forma calida obtener: medida de llanta o modelo/anio del vehiculo, servicio que necesita, cuantas piezas.\n2. Haz UNA pregunta: medida, vehiculo, cantidad o servicio.\n\nACCION AL PRIMER CONTACTO\nLlama a registrar_ticket antes de responder.\nEstado: Nuevo, Prioridad: MEDIA.\n\nACTUALIZACION DEL TICKET\nLlama a registrar_ticket cuando el cliente de: nombre, medida, vehiculo, cantidad, servicio o quiera comprar.\n\nHERRAMIENTAS\n1. consultar_faq: dudas de horarios, ubicacion, pagos, garantias, politicas\n2. registrar_ticket: primer contacto, actualizar datos, cotizacion, compra, escalacion\n\nDETECCION DE INTENCION DE COMPRA\nSi el cliente quiere comprar, apartar o pagar:\n[INTENCION_COMPRA]\n1. Llama a registrar_ticket (Prioridad: ALTA)\n2. Pide nombre si no lo tienes\n3. Di que un asesor le contacta para confirmar\n\nDETECCION DE PRESUPUESTO ALTO / FLOTILLAS\nSi menciona mas de 20,000 MXN, flotilla, empresa, mayoreo, camiones o 8+ llantas:\n[PRESUPUESTO_ALTO]\nDi que un asesor especializado en flotillas le contactara.\n\nFLOTILLAS Y MAYOREO = PRESUPUESTO ALTO\nCada llanta vale aprox 2,500 MXN. Si son 8 llantas o mas, es PRESUPUESTO ALTO automaticamente.\nEjemplos:\n- \"Necesito llantas para mi flotilla de 5 camionetas\" -> 20 llantas -> [PRESUPUESTO_ALTO]\n- \"Somos una empresa, ocupamos 30 llantas\" -> [PRESUPUESTO_ALTO]\n- \"Quiero 2 llantas\" -> flujo normal\n\nCuando detectes flotilla o mayoreo (8+ llantas):\n[PRESUPUESTO_ALTO]Excelente, para flotillas manejamos precios especiales. Me compartes tu nombre? Un asesor especializado te contacta hoy mismo.\n\nPROTOCOLO DE ESCALACION\nEscala si: no puedes resolver, problema con pago o garantia, cliente molesto, pide persona, urgencia (ponchadura en carretera).\n1. Pide nombre\n2. registrar_ticket (Estado: Escalado, Prioridad: ALTA)\n3. Un asesor te contactara en breve.\n\nESTILO\n- Maximo 3 lineas por mensaje\n- Una sola pregunta a la vez\n- Directo, calido, como vendedor de mostrador por WhatsApp\n- Emojis con moderacion\n- Sin asteriscos, hashtags ni markdown\n- Sin mencionar sistemas internos\n- No digas que eres bot\n- NUNCA repitas la misma pregunta que ya hiciste antes en la conversacion\n\nMARCADORES OBLIGATORIOS (NUNCA LOS OMITAS)\nCada vez que tu respuesta hable de asesor, contactar, seguimiento, apartado o cierre de venta, DEBES incluir el marcador correspondiente al INICIO de tu mensaje. Sin marcador, el sistema NO notifica al asesor y el cliente se queda sin atender.\n\nSIEMPRE pon el marcador cuando:\n- Mencionas que un asesor contactara al cliente -> [INTENCION_COMPRA]\n- El cliente pregunta precio, cuanto cuesta, disponibilidad -> [INTENCION_COMPRA]\n- Pides nombre para cerrar venta o pasar con asesor -> [INTENCION_COMPRA]\n- El cliente menciona medida + cantidad o vehiculo + servicio -> [INTENCION_COMPRA]\n- Flotilla, empresa, mayoreo, 8+ llantas, monto alto -> [PRESUPUESTO_ALTO]\n- El cliente pide hablar con persona/asesor -> [QUIERE_ASESOR]\n- El cliente esta frustrado o molesto con el bot -> [CANSADO_BOT]\n\nEjemplo CORRECTO:\nCliente: \"Cuanto salen 4 llantas 195/65 R15?\"\nBot: [INTENCION_COMPRA]La 195/65 R15 esta en $1,850 MXN por pieza. Para 4 piezas un asesor te confirma disponibilidad y te las aparta. Me compartes tu nombre?\n(IMPORTANTE: el precio DEBE salir del INVENTARIO, nunca lo inventes)\n\nEjemplo INCORRECTO (NUNCA hagas esto):\nCliente: \"Cuanto salen 4 llantas?\"\nBot: Voy a pasar tus datos para que un asesor te envie opciones.\n(FALTA el marcador [INTENCION_COMPRA] - el asesor NO recibe la alerta)\n\n*ULTIMA REGLA DE ORO\n-Siempre que vayas a mandar a una escalacion no se te olvide mencionar que se pasara a un asesor humano."
     }
    },
    "type": "@n8n/n8n-nodes-langchain.agent",
@@ -1483,7 +1498,7 @@
   },
   {
    "parameters": {
-    "jsCode": "const staticData = $getWorkflowStaticData(\"global\");\nconst CICLO = [\"a2\", \"a3\", \"a4\"];\nconst turnoActual = staticData.turno_asesor || \"a2\";\nstaticData.turno_asesor = CICLO[(CICLO.indexOf(turnoActual) + 1) % CICLO.length];\nconst inp = $input.first().json;\nreturn [{ json: { ...inp, turno_asesor: turnoActual } }];"
+    "jsCode": "const staticData = $getWorkflowStaticData(\"global\");\nconst CICLO = [\"a1\", \"a2\", \"a3\", \"a4\", \"a5\"];\nconst turnoActual = staticData.turno_asesor || \"a1\";\nstaticData.turno_asesor = CICLO[(CICLO.indexOf(turnoActual) + 1) % CICLO.length];\nconst inp = $input.first().json;\nreturn [{ json: { ...inp, turno_asesor: turnoActual } }];"
    },
    "type": "n8n-nodes-base.code",
    "typeVersion": 2,
@@ -1498,7 +1513,7 @@
   {
    "parameters": {
     "operation": "executeQuery",
-    "query": "=INSERT INTO solicitudes (telefono, asesor, estado, prioridad, bot_bloqueado, fecha_pausa_bot, actualizado) VALUES ('{{ $json.to.replace('+', '') }}', '{{ $json.turno_asesor === \"a2\" ? \"{{ASESOR2_NOMBRE}}\" : ($json.turno_asesor === \"a3\" ? \"{{ASESOR3_NOMBRE}}\" : \"{{ASESOR4_NOMBRE}}\") }}', 'Escalado', 'ALTA', true, NOW(), NOW()) ON CONFLICT (telefono) DO UPDATE SET asesor = EXCLUDED.asesor, estado = 'Escalado', prioridad = 'ALTA', bot_bloqueado = true, fecha_pausa_bot = NOW(), actualizado = NOW()",
+    "query": "=INSERT INTO solicitudes (telefono, asesor, estado, prioridad, bot_bloqueado, fecha_pausa_bot, actualizado) VALUES ('{{ $json.to.replace('+', '') }}', '{{ $json.turno_asesor === \"a1\" ? \"{{ASESOR1_NOMBRE}}\" : ($json.turno_asesor === \"a2\" ? \"{{ASESOR2_NOMBRE}}\" : ($json.turno_asesor === \"a3\" ? \"{{ASESOR3_NOMBRE}}\" : ($json.turno_asesor === \"a4\" ? \"{{ASESOR4_NOMBRE}}\" : \"{{ASESOR5_NOMBRE}}\"))) }}', 'Escalado', 'ALTA', true, NOW(), NOW()) ON CONFLICT (telefono) DO UPDATE SET asesor = EXCLUDED.asesor, estado = 'Escalado', prioridad = 'ALTA', bot_bloqueado = true, fecha_pausa_bot = NOW(), actualizado = NOW()",
     "options": {}
    },
    "type": "n8n-nodes-base.postgres",
@@ -1692,6 +1707,51 @@
    "id": "pushover-asesor-4-jaure",
    "name": "PUSHOVER ASESOR 4",
    "webhookId": "f9d67c65-ca19-4a7d-a3b7-c07a7677cfe6",
+   "credentials": {
+    "smtp": {
+     "id": "REEMPLAZAR",
+     "name": "JAURE SMTP"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "operation": "executeQuery",
+    "query": "=UPDATE solicitudes SET asesor='{{ASESOR5_NOMBRE}}', actualizado=NOW() WHERE telefono='{{ $('Edit Fields1').first().json.Telefono.replace('+', '') }}'",
+    "options": {}
+   },
+   "type": "n8n-nodes-base.postgres",
+   "typeVersion": 2.5,
+   "position": [
+    17664,
+    8008
+   ],
+   "id": "asignar-asesor-4-jaure",
+   "name": "Asignar Asesor4",
+   "credentials": {
+    "postgres": {
+     "id": "REEMPLAZAR",
+     "name": "JAURE Postgres"
+    }
+   }
+  },
+  {
+   "parameters": {
+    "fromEmail": "{{SMTP_FROM_EMAIL}}",
+    "toEmail": "{{PUSHOVER_ASESOR5}}",
+    "subject": "=🔔 Lead: {{ $('Detectar Alerta Asesor1').first().json.motivo_alerta }} - {{ $('Detectar Alerta Asesor1').first().json.cliente_nombre || 'Sin nombre' }} | JAURE",
+    "html": "=<div style=\"font-family:Arial,sans-serif;max-width:600px;margin:0 auto;\">\n  <div style=\"background:#0033CC;padding:20px;border-radius:8px 8px 0 0;\">\n    <h2 style=\"color:#fff;margin:0;\">🔧 JAURE Ingeniería Automotriz — Cliente Requiere Atención</h2>\n  </div>\n\n  <div style=\"background:#f9f9f9;padding:20px;border-radius:0 0 8px 8px;border:1px solid #ddd;\">\n    <table style=\"width:100%;border-collapse:collapse;\">\n      \n      \n      <tr style=\"background:#e8f5e9;border-left:4px solid #43a047;\">\n        <td style=\"padding:12px;font-weight:bold;color:#2e7d32;\">📋 Contexto</td>\n        <td style=\"padding:12px;color:#222;font-size:14px;line-height:1.5;\">\n          {{ $('Generar Resumen').first().json.choices[0].message.content || 'Sin resumen disponible' }}\n        </td>\n      </tr>\n\n      <tr style=\"background:#f0f0f0;\">\n        <td style=\"padding:10px;font-weight:bold;color:#555;width:38%;\">👤 Nombre</td>\n        <td style=\"padding:10px;color:#222;\">\n          {{ $('Detectar Alerta Asesor1').first().json.cliente_nombre || '—' }}\n        </td>\n      </tr>\n\n      <tr>\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">📱 WhatsApp cliente</td>\n        <td style=\"padding:10px;color:#222;\">\n          <a href=\"https://wa.me/{{ $('Detectar Alerta Asesor1').first().json.wa_id }}\"\n             style=\"color:#25D366;font-weight:bold;text-decoration:none;\"\n             target=\"_blank\">\n             {{ $('Detectar Alerta Asesor1').first().json.wa_id }}\n          </a>\n        </td>\n      </tr>\n\n      <tr style=\"background:#f0f0f0;\">\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">🏢 Número receptor</td>\n        <td style=\"padding:10px;color:#222;\">\n          {{ $('Detectar Alerta Asesor1').first().json.numero_negocio }}\n        </td>\n      </tr>\n\n      <tr>\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">💬 Último mensaje</td>\n        <td style=\"padding:10px;color:#222;\">\n          {{ $('Detectar Alerta Asesor1').first().json.cliente_mensaje }}\n        </td>\n      </tr>\n\n      <tr style=\"background:#f0f0f0;\">\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">🤖 Respuesta del asistente</td>\n        <td style=\"padding:10px;color:#222;\">\n          {{ $('Detectar Alerta Asesor1').first().json.mensaje_limpio }}\n        </td>\n      </tr>\n\n      <tr>\n        <td style=\"padding:10px;font-weight:bold;color:#555;\">📅 Fecha y hora</td>\n        <td style=\"padding:10px;color:#222;\">\n          {{ DateTime.now().setZone('America/Mexico_City').toFormat('dd/MM/yyyy HH:mm') }} (Hora México)\n        </td>\n      </tr>\n\n    </table>\n\n    <div style=\"margin-top:20px;padding:15px;background:#d1ecf1;border-left:4px solid #17a2b8;border-radius:4px;\">\n      <strong>✈️ Atención requerida:</strong><br>\n      Este cliente necesita seguimiento por parte de un asesor de JAURE Agency.\n      El asistente virtual ha detectado intención de compra o requiere atención personalizada.\n      Contáctalo por WhatsApp lo antes posible.\n    </div>\n  </div>\n\n  <p style=\"font-size:11px;color:#aaa;text-align:center;margin-top:10px;\">\n    Notificación automática — JAURE Agency · Tulancingo, Hidalgo\n  </p>\n</div>",
+    "options": {}
+   },
+   "type": "n8n-nodes-base.emailSend",
+   "typeVersion": 2.1,
+   "position": [
+    17424,
+    8008
+   ],
+   "id": "pushover-asesor-5-jaure",
+   "name": "PUSHOVER ASESOR 5",
+   "webhookId": "a1c2d3e4-f5g6-7h8i-9j0k-l1m2n3o4p5q6",
    "credentials": {
     "smtp": {
      "id": "REEMPLAZAR",
@@ -1980,28 +2040,10 @@
    "main": [
     [
      {
-      "node": "IF Presupuesto Alto? BS",
-      "type": "main",
-      "index": 0
-     },
-     {
       "node": "Notificar Email Lead",
       "type": "main",
       "index": 0
-     }
-    ]
-   ]
-  },
-  "IF Presupuesto Alto? BS": {
-   "main": [
-    [
-     {
-      "node": "PUSHOVER ASESOR VIP",
-      "type": "main",
-      "index": 0
-     }
-    ],
-    [
+     },
      {
       "node": "Turno Asesor?",
       "type": "main",
@@ -2344,7 +2386,7 @@
     ]
    ]
   },
-  "PUSHOVER ASESOR VIP": {
+  "PUSHOVER ASESOR 1": {
    "main": [
     [
      {
@@ -2381,6 +2423,13 @@
    "main": [
     [
      {
+      "node": "PUSHOVER ASESOR 1",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
       "node": "PUSHOVER ASESOR 2",
       "type": "main",
       "index": 0
@@ -2399,6 +2448,13 @@
       "type": "main",
       "index": 0
      }
+    ],
+    [
+     {
+      "node": "PUSHOVER ASESOR 5",
+      "type": "main",
+      "index": 0
+     }
     ]
    ]
   },
@@ -2407,6 +2463,17 @@
     [
      {
       "node": "Asignar Asesor3",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "PUSHOVER ASESOR 5": {
+   "main": [
+    [
+     {
+      "node": "Asignar Asesor4",
       "type": "main",
       "index": 0
      }

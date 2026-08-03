@@ -6,6 +6,7 @@ import { CRM_TABLES, CrmTableSlug, query } from "@/lib/db";
 import EstadoSelect from "./estado-select";
 import PrioridadSelect from "./prioridad-select";
 import BotToggle from "./bot-toggle";
+import AsesorInput from "./asesor-input";
 import EliminarButton from "./eliminar-button";
 import CotizacionButton from "./cotizacion-button";
 import FaqRowForm from "./faq-row-form";
@@ -133,6 +134,13 @@ export default async function CrmTablePage({
                         return (
                           <td key={col} className="whitespace-nowrap px-4 py-2">
                             <BotToggle id={String(r.id)} activo={!r.bot_bloqueado} />
+                          </td>
+                        );
+                      }
+                      if (tabla === "solicitudes" && col === "asesor") {
+                        return (
+                          <td key={col} className="whitespace-nowrap px-4 py-2">
+                            <AsesorInput id={String(r.id)} value={r.asesor ? String(r.asesor) : ""} />
                           </td>
                         );
                       }

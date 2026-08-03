@@ -72,6 +72,20 @@ export async function actualizarBotActivoAction(formData: FormData) {
   revalidatePath("/crm/solicitudes");
 }
 
+export async function actualizarAsesorAction(formData: FormData) {
+  const id = String(formData.get("id") || "");
+  const asesor = String(formData.get("asesor") || "").trim();
+
+  if (!id) return;
+
+  await query(
+    `UPDATE solicitudes SET asesor = NULLIF($1, ''), actualizado = NOW() WHERE id = $2`,
+    [asesor, id]
+  );
+
+  revalidatePath("/crm/solicitudes");
+}
+
 export async function eliminarSolicitudAction(formData: FormData) {
   const id = String(formData.get("id") || "");
   if (!id) return;
