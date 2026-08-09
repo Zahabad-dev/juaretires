@@ -271,12 +271,12 @@
     "operation": "read",
     "documentId": {
      "__rl": true,
-     "value": "{{GOOGLE_SHEET_ID}}",
+     "value": "1jAJzhipDONzFNUpArMQaffDdyJ5D72hJ",
      "mode": "id"
     },
     "sheetName": {
      "__rl": true,
-     "value": "{{NOMBRE_PESTANA_INVENTARIO}}",
+     "value": "Hoja1",
      "mode": "name"
     },
     "options": {}
