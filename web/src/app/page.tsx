@@ -4,9 +4,11 @@ import Footer from "@/components/Footer";
 import { whatsappLink } from "@/lib/whatsapp";
 import { query } from "@/lib/db";
 
-// Estático por defecto; se refresca al instante cuando se edita en /crm/productos
-// (revalidatePath) y como respaldo cada hora.
-export const revalidate = 3600;
+// Forzado a dinámico: consulta la BD en cada visita. Necesario porque el
+// build de Easypanel no tiene acceso al host interno de Postgres — con
+// generación estática, "next build" intenta prerenderizar "/" y falla
+// (EAI_AGAIN jaure_jaure-db) al no poder resolver ese hostname en build-time.
+export const dynamic = "force-dynamic";
 
 interface ProductoEstrella {
   id: number;
