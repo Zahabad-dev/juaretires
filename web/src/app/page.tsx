@@ -2,6 +2,19 @@ import Image from "next/image";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { whatsappLink } from "@/lib/whatsapp";
+import { query } from "@/lib/db";
+
+// Estático por defecto; se refresca al instante cuando se edita en /crm/productos
+// (revalidatePath) y como respaldo cada hora.
+export const revalidate = 3600;
+
+interface ProductoEstrella {
+  id: number;
+  nombre: string;
+  medida: string | null;
+  descripcion: string;
+  imagen: string;
+}
 
 /* Capacidades — Brandbook p.6 "Qué es JAURE" + servicios franquicia */
 const SERVICES = [
@@ -149,7 +162,11 @@ const GALERIA = [
   { src: "/fotos/generica1.jpg", alt: "Servicio en taller JAURE" },
 ];
 
-export default function Home() {
+export default async function Home() {
+  const { rows: productos } = await query<ProductoEstrella>(
+    `SELECT id, nombre, medida, descripcion, imagen FROM productos_estrella WHERE activo = true ORDER BY orden`
+  );
+
   return (
     <div className="flex flex-1 flex-col bg-brand-bg">
       <Header />
@@ -351,6 +368,63 @@ export default function Home() {
             </div>
           </div>
         </section>
+
+        {/* ── PRODUCTOS ESTRELLA ── */}
+        {productos.length > 0 && (
+          <section className="border-b border-brand-border bg-brand-surface px-6 py-24">
+            <div className="mx-auto max-w-6xl">
+              <div className="text-center">
+                <p className="kicker">Productos Estrella</p>
+                <h2 className="mt-4 text-3xl font-bold text-brand-text sm:text-4xl">
+                  Llantas Recomendadas
+                </h2>
+                <div className="brand-line mx-auto mt-6" />
+              </div>
+
+              <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
+                {productos.map((p) => (
+                  <div
+                    key={p.id}
+                    className="group flex flex-col overflow-hidden border border-brand-border bg-brand-surface2 transition-colors hover:border-brand-primary/50"
+                  >
+                    <div className="relative aspect-square w-full overflow-hidden bg-white/5">
+                      <Image
+                        src={p.imagen}
+                        alt={p.nombre}
+                        fill
+                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                        className="object-contain p-6 transition-transform duration-500 group-hover:scale-105"
+                      />
+                    </div>
+                    <div className="flex flex-1 flex-col gap-2 p-5">
+                      {p.medida && (
+                        <span className="w-fit border border-brand-primary/40 px-2 py-0.5 font-heading text-[10px] font-semibold tracking-[0.14em] text-brand-accent">
+                          {p.medida}
+                        </span>
+                      )}
+                      <h3 className="font-heading text-xs font-semibold tracking-[0.16em] text-brand-text">
+                        {p.nombre.toUpperCase()}
+                      </h3>
+                      <p className="flex-1 text-sm font-light leading-relaxed text-brand-muted">
+                        {p.descripcion}
+                      </p>
+                      <a
+                        href={whatsappLink(
+                          `Hola, me interesa la llanta ${p.nombre}${p.medida ? ` ${p.medida}` : ""}`
+                        )}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-2 inline-flex items-center gap-2 font-heading text-xs font-semibold tracking-[0.18em] text-brand-accent transition-transform group-hover:translate-x-1"
+                      >
+                        COTIZAR →
+                      </a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* ── MARCAS ── */}
         <div className="border-b border-brand-border bg-brand-surface2 line-pattern">

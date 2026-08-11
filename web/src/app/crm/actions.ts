@@ -170,3 +170,32 @@ export async function actualizarAsesorNombreAction(
   revalidatePath("/crm/asesores");
   return { success: "Asesor actualizado." };
 }
+
+export async function actualizarProductoAction(
+  _prevState: { error?: string; success?: string } | undefined,
+  formData: FormData
+): Promise<{ error?: string; success?: string }> {
+  const session = await auth();
+  if (session?.user?.rol !== "admin") {
+    return { error: "Solo Uriel puede editar productos estrella." };
+  }
+
+  const id = String(formData.get("id") || "");
+  const nombre = String(formData.get("nombre") || "").trim();
+  const medida = String(formData.get("medida") || "").trim();
+  const descripcion = String(formData.get("descripcion") || "").trim();
+  const activo = formData.get("activo") === "on";
+
+  if (!id || !nombre || !descripcion) {
+    return { error: "Nombre y descripción no pueden estar vacíos." };
+  }
+
+  await query(
+    `UPDATE productos_estrella SET nombre = $1, medida = $2, descripcion = $3, activo = $4 WHERE id = $5`,
+    [nombre, medida, descripcion, activo, id]
+  );
+
+  revalidatePath("/crm/productos");
+  revalidatePath("/");
+  return { success: "Producto actualizado." };
+}
