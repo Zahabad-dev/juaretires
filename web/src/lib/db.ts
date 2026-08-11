@@ -18,14 +18,6 @@ export const CRM_TABLES = {
     table: "solicitudes",
     label: "Solicitudes",
   },
-  contactos: {
-    table: "contactos",
-    label: "Contactos",
-  },
-  conversaciones: {
-    table: "conversaciones",
-    label: "Conversaciones",
-  },
   faq: {
     table: "faq",
     label: "FAQ",

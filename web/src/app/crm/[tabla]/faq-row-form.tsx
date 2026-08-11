@@ -8,11 +8,13 @@ export default function FaqRowForm({
   pregunta,
   respuesta,
   activo,
+  puedeEditar,
 }: {
   id: string;
   pregunta: string;
   respuesta: string;
   activo: boolean;
+  puedeEditar: boolean;
 }) {
   const [state, action, pending] = useActionState(actualizarFaqAction, undefined);
 
@@ -27,14 +29,16 @@ export default function FaqRowForm({
         <input
           name="pregunta"
           defaultValue={pregunta}
-          className="rounded-lg border border-white/10 bg-brand-bg px-3 py-2 text-sm text-brand-text placeholder:text-brand-text/30 focus:border-brand-primary focus:outline-none"
+          disabled={!puedeEditar}
+          className="rounded-lg border border-white/10 bg-brand-bg px-3 py-2 text-sm text-brand-text placeholder:text-brand-text/30 focus:border-brand-primary focus:outline-none disabled:opacity-60"
           placeholder="Pregunta"
         />
         <textarea
           name="respuesta"
           defaultValue={respuesta}
           rows={3}
-          className="rounded-lg border border-white/10 bg-brand-bg px-3 py-2 text-sm text-brand-text placeholder:text-brand-text/30 focus:border-brand-primary focus:outline-none"
+          disabled={!puedeEditar}
+          className="rounded-lg border border-white/10 bg-brand-bg px-3 py-2 text-sm text-brand-text placeholder:text-brand-text/30 focus:border-brand-primary focus:outline-none disabled:opacity-60"
           placeholder="Respuesta"
         />
         <div className="flex items-center justify-between">
@@ -43,20 +47,26 @@ export default function FaqRowForm({
               type="checkbox"
               name="activo"
               defaultChecked={activo}
-              className="h-4 w-4 accent-brand-primary"
+              disabled={!puedeEditar}
+              className="h-4 w-4 accent-brand-primary disabled:opacity-60"
             />
             Activa
           </label>
           <div className="flex items-center gap-3">
+            {!puedeEditar && (
+              <p className="text-xs text-brand-text/40">Solo Uriel puede editar la FAQ</p>
+            )}
             {state?.error && <p className="text-xs text-red-400">{state.error}</p>}
             {state?.success && <p className="text-xs text-green-400">{state.success}</p>}
-            <button
-              type="submit"
-              disabled={pending}
-              className="rounded-full bg-brand-primary px-4 py-1.5 font-heading text-sm text-brand-bg transition-opacity hover:opacity-90 disabled:opacity-50"
-            >
-              {pending ? "Guardando…" : "Guardar"}
-            </button>
+            {puedeEditar && (
+              <button
+                type="submit"
+                disabled={pending}
+                className="rounded-full bg-brand-primary px-4 py-1.5 font-heading text-sm text-brand-bg transition-opacity hover:opacity-90 disabled:opacity-50"
+              >
+                {pending ? "Guardando…" : "Guardar"}
+              </button>
+            )}
           </div>
         </div>
       </div>

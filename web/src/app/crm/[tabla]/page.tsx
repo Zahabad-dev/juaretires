@@ -35,6 +35,7 @@ export default async function CrmTablePage({
 
   // --- FAQ: edición inline ---
   if (tabla === "faq") {
+    const puedeEditarFaq = session.user?.rol === "admin";
     const result = await query(
       `SELECT id, pregunta, respuesta, activo FROM faq ORDER BY id`
     );
@@ -60,6 +61,7 @@ export default async function CrmTablePage({
                   pregunta={String(r.pregunta)}
                   respuesta={String(r.respuesta)}
                   activo={Boolean(r.activo)}
+                  puedeEditar={puedeEditarFaq}
                 />
               );
             })}

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { AuthError } from "next-auth";
-import { signIn, signOut } from "@/auth";
+import { auth, signIn, signOut } from "@/auth";
 import { query } from "@/lib/db";
 
 const PRIORIDADES = ["BAJA", "MEDIA", "ALTA"] as const;
@@ -98,6 +98,11 @@ export async function actualizarFaqAction(
   _prevState: { error?: string; success?: string } | undefined,
   formData: FormData
 ): Promise<{ error?: string; success?: string }> {
+  const session = await auth();
+  if (session?.user?.rol !== "admin") {
+    return { error: "Solo Uriel puede editar la FAQ." };
+  }
+
   const id = String(formData.get("id") || "");
   const pregunta = String(formData.get("pregunta") || "").trim();
   const respuesta = String(formData.get("respuesta") || "").trim();
@@ -114,4 +119,29 @@ export async function actualizarFaqAction(
 
   revalidatePath("/crm/faq");
   return { success: "FAQ actualizada." };
+}
+
+export async function actualizarAsesorNombreAction(
+  _prevState: { error?: string; success?: string } | undefined,
+  formData: FormData
+): Promise<{ error?: string; success?: string }> {
+  const session = await auth();
+  if (session?.user?.rol !== "admin") {
+    return { error: "Solo Uriel puede asignar nombres de asesores." };
+  }
+
+  const turno = String(formData.get("turno") || "").trim();
+  const nombre = String(formData.get("nombre") || "").trim();
+
+  if (!turno || !nombre) {
+    return { error: "El nombre no puede estar vacío." };
+  }
+
+  await query(
+    `UPDATE asesores SET nombre = $1, actualizado = NOW() WHERE turno = $2`,
+    [nombre, turno]
+  );
+
+  revalidatePath("/crm/asesores");
+  return { success: "Asesor actualizado." };
 }
