@@ -86,84 +86,96 @@ export async function GET(
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cotización Juare Tires #${s.id}</title>
+  <title>Cotización JAURE #${s.id}</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: 'Segoe UI', Arial, sans-serif;
-      background: #f4f4f4;
-      color: #1a1a1a;
+      background: #dfe1e4;
+      color: #1A1D22;
       padding: 0;
     }
     .page {
       background: #fff;
       max-width: 800px;
       margin: 0 auto;
-      padding: 48px 52px 60px;
       min-height: 100vh;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.12);
     }
 
-    /* Header */
+    /* Header — banda oscura de marca */
     .header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 3px solid #e63946;
-      padding-bottom: 20px;
-      margin-bottom: 28px;
+      gap: 24px;
+      background: #0B0D11;
+      background-image: linear-gradient(135deg, #0B0D11 0%, #1A1D22 100%);
+      padding: 32px 44px;
+      border-bottom: 3px solid #0033CC;
     }
-    .logo-area h1 {
-      font-size: 28px;
-      font-weight: 900;
-      letter-spacing: -0.5px;
-      color: #e63946;
+    .logo-area { display: flex; align-items: center; gap: 14px; }
+    .logo-area img { height: 40px; width: auto; display: block; }
+    .logo-area .wordmark { line-height: 1.15; }
+    .logo-area .wordmark .name {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      color: #FFFFFF;
       text-transform: uppercase;
     }
-    .logo-area p {
-      font-size: 12px;
-      color: #666;
+    .logo-area .wordmark .tag {
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: #4D79FF;
+      text-transform: uppercase;
       margin-top: 2px;
     }
     .doc-info {
       text-align: right;
-      font-size: 13px;
-      color: #444;
+      font-size: 12.5px;
+      color: #BFC3C8;
+      line-height: 1.6;
     }
     .doc-info .num {
-      font-size: 22px;
+      font-size: 20px;
       font-weight: 700;
-      color: #e63946;
+      color: #FFFFFF;
+      letter-spacing: 0.5px;
     }
+
+    .body-content { padding: 40px 44px 48px; }
 
     /* Client block */
     .client-block {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 16px;
-      background: #f9f9f9;
-      border-radius: 8px;
-      padding: 20px;
-      margin-bottom: 28px;
+      background: #F4F5F7;
+      border: 1px solid #E4E6E9;
+      border-radius: 10px;
+      padding: 20px 22px;
+      margin-bottom: 30px;
     }
     .client-block .label {
-      font-size: 11px;
+      font-size: 10.5px;
       text-transform: uppercase;
-      letter-spacing: 0.6px;
-      color: #999;
+      letter-spacing: 0.8px;
+      color: #9B9FA6;
       margin-bottom: 3px;
     }
     .client-block .val {
       font-size: 14px;
       font-weight: 600;
-      color: #1a1a1a;
+      color: #1A1D22;
     }
 
     /* Table */
     h2 {
-      font-size: 14px;
+      font-size: 13px;
       text-transform: uppercase;
-      letter-spacing: 0.8px;
-      color: #e63946;
+      letter-spacing: 1px;
+      color: #0033CC;
       margin-bottom: 12px;
       font-weight: 700;
     }
@@ -171,52 +183,52 @@ export async function GET(
       width: 100%;
       border-collapse: collapse;
       font-size: 13px;
-      margin-bottom: 32px;
+      margin-bottom: 28px;
     }
     thead {
-      background: #e63946;
+      background: #0033CC;
       color: #fff;
     }
     thead th {
-      padding: 10px 12px;
+      padding: 11px 12px;
       text-align: left;
       font-weight: 600;
-      font-size: 12px;
+      font-size: 11.5px;
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
     thead th:not(:first-child) { text-align: center; }
     thead th:last-child { text-align: right; }
-    tbody tr:nth-child(even) { background: #f9f9f9; }
+    tbody tr:nth-child(even) { background: #F7F8FA; }
     tbody td {
       padding: 10px 12px;
-      border-bottom: 1px solid #eee;
+      border-bottom: 1px solid #ECEDEF;
     }
 
     /* Totals */
     .totals {
       margin-left: auto;
-      width: 260px;
+      width: 270px;
       margin-bottom: 40px;
     }
     .totals table { margin-bottom: 0; }
     .totals td { font-size: 13px; padding: 6px 12px; border: none; }
     .totals .total-row td {
-      font-size: 16px;
-      font-weight: 700;
-      color: #e63946;
-      border-top: 2px solid #e63946;
-      padding-top: 10px;
+      font-size: 17px;
+      font-weight: 800;
+      color: #0033CC;
+      border-top: 2px solid #0033CC;
+      padding-top: 12px;
     }
 
     /* Notes */
     .notes-block {
-      background: #fff8f8;
-      border-left: 3px solid #e63946;
+      background: #EEF2FF;
+      border-left: 3px solid #0033CC;
       padding: 14px 18px;
       border-radius: 4px;
       font-size: 13px;
-      color: #444;
+      color: #33363B;
       margin-bottom: 40px;
       white-space: pre-wrap;
     }
@@ -226,29 +238,30 @@ export async function GET(
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 40px;
-      margin-top: 60px;
+      margin-top: 56px;
     }
     .sig-box {
-      border-top: 1.5px solid #aaa;
+      border-top: 1.5px solid #C7CAD0;
       padding-top: 8px;
       font-size: 12px;
-      color: #666;
+      color: #6B6F76;
       text-align: center;
     }
 
-    /* Footer */
+    /* Footer — banda oscura al calce */
     .footer {
-      margin-top: 48px;
+      background: #0B0D11;
       text-align: center;
       font-size: 11px;
-      color: #bbb;
-      border-top: 1px solid #eee;
-      padding-top: 14px;
+      color: #7B8290;
+      padding: 16px;
+      letter-spacing: 0.3px;
     }
+    .footer strong { color: #BFC3C8; }
 
     @media print {
       body { background: #fff; }
-      .page { padding: 24px 32px 40px; }
+      .page { box-shadow: none; }
     }
   </style>
 </head>
@@ -256,8 +269,11 @@ export async function GET(
   <div class="page">
     <div class="header">
       <div class="logo-area">
-        <h1>Juare Tires</h1>
-        <p>Llantas, Servicio y Alineación</p>
+        <img src="/brand/jj-isotipo.png" alt="JAURE" />
+        <div class="wordmark">
+          <div class="name">JAURE</div>
+          <div class="tag">Ingeniería Automotriz</div>
+        </div>
       </div>
       <div class="doc-info">
         <div class="num">COTIZACIÓN #${String(s.id).padStart(4, "0")}</div>
@@ -266,57 +282,59 @@ export async function GET(
       </div>
     </div>
 
-    <div class="client-block">
-      <div>
-        <div class="label">Cliente</div>
-        <div class="val">${esc(s.nombre || "Sin nombre")}</div>
+    <div class="body-content">
+      <div class="client-block">
+        <div>
+          <div class="label">Cliente</div>
+          <div class="val">${esc(s.nombre || "Sin nombre")}</div>
+        </div>
+        <div>
+          <div class="label">Teléfono</div>
+          <div class="val">${esc(s.telefono)}</div>
+        </div>
       </div>
-      <div>
-        <div class="label">Teléfono</div>
-        <div class="val">${esc(s.telefono)}</div>
-      </div>
-    </div>
 
-    <h2>Detalle de la cotización</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Descripción / Producto</th>
-          <th style="text-align:center">Cantidad</th>
-          <th style="text-align:right">P. Unitario</th>
-          <th style="text-align:right">Total</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${productosLineas || `<tr><td colspan="4" style="text-align:center;color:#999;padding:20px">Sin productos especificados</td></tr>`}
-      </tbody>
-    </table>
-
-    <div class="totals">
+      <h2>Detalle de la cotización</h2>
       <table>
-        <tr><td>Subtotal:</td><td style="text-align:right">${hayPreciosReales ? money(subtotal) : "$—"}</td></tr>
-        <tr><td>IVA (16%):</td><td style="text-align:right">${hayPreciosReales ? money(iva) : "$—"}</td></tr>
-        <tr class="total-row"><td>TOTAL:</td><td style="text-align:right">${hayPreciosReales ? money(total) : "$—"}</td></tr>
+        <thead>
+          <tr>
+            <th>Descripción / Producto</th>
+            <th style="text-align:center">Cantidad</th>
+            <th style="text-align:right">P. Unitario</th>
+            <th style="text-align:right">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${productosLineas || `<tr><td colspan="4" style="text-align:center;color:#999;padding:20px">Sin productos especificados</td></tr>`}
+        </tbody>
       </table>
-    </div>
 
-    ${s.notas ? `<h2>Notas</h2><div class="notes-block">${esc(s.notas)}</div>` : ""}
-
-    <div class="signatures">
-      <div class="sig-box">
-        <p>Firma del cliente</p>
-        <br /><br />
-        <p>${esc(s.nombre || "___________________________")}</p>
+      <div class="totals">
+        <table>
+          <tr><td>Subtotal:</td><td style="text-align:right">${hayPreciosReales ? money(subtotal) : "$—"}</td></tr>
+          <tr><td>IVA (16%):</td><td style="text-align:right">${hayPreciosReales ? money(iva) : "$—"}</td></tr>
+          <tr class="total-row"><td>TOTAL:</td><td style="text-align:right">${hayPreciosReales ? money(total) : "$—"}</td></tr>
+        </table>
       </div>
-      <div class="sig-box">
-        <p>Autorizado por</p>
-        <br /><br />
-        <p>Juare Tires</p>
+
+      ${s.notas ? `<h2>Notas</h2><div class="notes-block">${esc(s.notas)}</div>` : ""}
+
+      <div class="signatures">
+        <div class="sig-box">
+          <p>Firma del cliente</p>
+          <br /><br />
+          <p>${esc(s.nombre || "___________________________")}</p>
+        </div>
+        <div class="sig-box">
+          <p>Autorizado por</p>
+          <br /><br />
+          <p>JAURE Ingeniería Automotriz</p>
+        </div>
       </div>
     </div>
 
     <div class="footer">
-      Esta cotización es válida por 7 días a partir de la fecha de emisión. · Juare Tires
+      Esta cotización es válida por 7 días a partir de la fecha de emisión. · <strong>JAURE Ingeniería Automotriz</strong>
     </div>
   </div>
 
