@@ -34,22 +34,52 @@ export async function GET(
     creado_en: Date;
   };
 
+  const itemsResult = await query(
+    `SELECT producto, cantidad, precio_unitario FROM solicitud_items WHERE solicitud_id = $1 ORDER BY orden, id`,
+    [id]
+  );
+  const items = itemsResult.rows as {
+    producto: string;
+    cantidad: number;
+    precio_unitario: string | null;
+  }[];
+
   const fecha = new Date(s.creado_en).toLocaleDateString("es-MX", {
     day: "2-digit",
     month: "long",
     year: "numeric",
   });
 
-  const productosLineas = (s.productos || "")
-    .split("\n")
-    .filter(Boolean)
-    .map((p) => `<tr>
+  const money = (n: number) =>
+    n.toLocaleString("es-MX", { style: "currency", currency: "MXN" });
+
+  let subtotal = 0;
+  const productosLineas = items.length > 0
+    ? items.map((it) => {
+        const precio = it.precio_unitario === null ? null : Number(it.precio_unitario);
+        const lineaTotal = precio === null ? null : precio * it.cantidad;
+        if (lineaTotal !== null) subtotal += lineaTotal;
+        return `<tr>
+      <td>${esc(it.producto)}</td>
+      <td style="text-align:center">${it.cantidad}</td>
+      <td style="text-align:right">${precio === null ? "$—" : money(precio)}</td>
+      <td style="text-align:right">${lineaTotal === null ? "$—" : money(lineaTotal)}</td>
+    </tr>`;
+      }).join("\n")
+    : (s.productos || "")
+        .split("\n")
+        .filter(Boolean)
+        .map((p) => `<tr>
       <td>${esc(p)}</td>
       <td style="text-align:center">—</td>
       <td style="text-align:right">$—</td>
       <td style="text-align:right">$—</td>
     </tr>`)
-    .join("\n");
+        .join("\n");
+
+  const iva = subtotal * 0.16;
+  const total = subtotal + iva;
+  const hayPreciosReales = items.some((it) => it.precio_unitario !== null);
 
   const html = `<!DOCTYPE html>
 <html lang="es">
@@ -264,9 +294,9 @@ export async function GET(
 
     <div class="totals">
       <table>
-        <tr><td>Subtotal:</td><td style="text-align:right">$—</td></tr>
-        <tr><td>IVA (16%):</td><td style="text-align:right">$—</td></tr>
-        <tr class="total-row"><td>TOTAL:</td><td style="text-align:right">$—</td></tr>
+        <tr><td>Subtotal:</td><td style="text-align:right">${hayPreciosReales ? money(subtotal) : "$—"}</td></tr>
+        <tr><td>IVA (16%):</td><td style="text-align:right">${hayPreciosReales ? money(iva) : "$—"}</td></tr>
+        <tr class="total-row"><td>TOTAL:</td><td style="text-align:right">${hayPreciosReales ? money(total) : "$—"}</td></tr>
       </table>
     </div>
 

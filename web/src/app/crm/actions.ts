@@ -146,6 +146,40 @@ export async function crearFaqAction(
   return { success: "FAQ agregada." };
 }
 
+export async function guardarCotizacionAction(
+  _prevState: { error?: string; success?: string } | undefined,
+  formData: FormData
+): Promise<{ error?: string; success?: string }> {
+  const solicitudId = String(formData.get("solicitud_id") || "");
+  if (!solicitudId) {
+    return { error: "Falta el id de la solicitud." };
+  }
+
+  const productos = formData.getAll("producto").map((v) => String(v).trim());
+  const cantidades = formData.getAll("cantidad").map((v) => Number(v) || 1);
+  const precios = formData.getAll("precio").map((v) => {
+    const s = String(v).trim();
+    return s === "" ? null : Number(s);
+  });
+
+  const filas = productos
+    .map((producto, i) => ({ producto, cantidad: cantidades[i] ?? 1, precio: precios[i] ?? null }))
+    .filter((f) => f.producto !== "");
+
+  await query(`DELETE FROM solicitud_items WHERE solicitud_id = $1`, [solicitudId]);
+
+  for (let i = 0; i < filas.length; i++) {
+    const f = filas[i];
+    await query(
+      `INSERT INTO solicitud_items (solicitud_id, producto, cantidad, precio_unitario, orden) VALUES ($1, $2, $3, $4, $5)`,
+      [solicitudId, f.producto, f.cantidad, f.precio, i]
+    );
+  }
+
+  revalidatePath(`/crm/cotizacion/${solicitudId}`);
+  return { success: "Cotización guardada." };
+}
+
 export async function actualizarAsesorNombreAction(
   _prevState: { error?: string; success?: string } | undefined,
   formData: FormData

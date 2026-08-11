@@ -33,5 +33,18 @@ export async function POST(req: Request) {
     [telefono, nombre, descripcion, ultimoMensaje, estado, prioridad]
   );
 
-  return NextResponse.json({ ok: true, id: result.rows[0]?.id });
+  const solicitudId = result.rows[0]?.id;
+
+  // Sugiere el producto en la cotizacion (precio queda pendiente de captura
+  // por el asesor). Si ya existe esa misma descripcion, no duplica la fila.
+  if (solicitudId && descripcion) {
+    await query(
+      `INSERT INTO solicitud_items (solicitud_id, producto, cantidad)
+       VALUES ($1, $2, 1)
+       ON CONFLICT (solicitud_id, producto) DO NOTHING`,
+      [solicitudId, descripcion]
+    );
+  }
+
+  return NextResponse.json({ ok: true, id: solicitudId });
 }
