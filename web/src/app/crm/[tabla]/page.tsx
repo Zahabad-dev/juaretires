@@ -10,6 +10,7 @@ import AsesorInput from "./asesor-input";
 import EliminarButton from "./eliminar-button";
 import CotizacionButton from "./cotizacion-button";
 import FaqRowForm from "./faq-row-form";
+import FaqNuevaForm from "./faq-nueva-form";
 import NotificationBell from "@/app/crm/notification-bell";
 
 export const dynamic = "force-dynamic";
@@ -52,6 +53,7 @@ export default async function CrmTablePage({
             </p>
           </div>
           <div className="flex flex-col gap-4">
+            {puedeEditarFaq && <FaqNuevaForm />}
             {result.rows.map((row) => {
               const r = row as Record<string, unknown>;
               return (

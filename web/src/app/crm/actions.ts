@@ -121,6 +121,31 @@ export async function actualizarFaqAction(
   return { success: "FAQ actualizada." };
 }
 
+export async function crearFaqAction(
+  _prevState: { error?: string; success?: string } | undefined,
+  formData: FormData
+): Promise<{ error?: string; success?: string }> {
+  const session = await auth();
+  if (session?.user?.rol !== "admin") {
+    return { error: "Solo Uriel puede agregar FAQ." };
+  }
+
+  const pregunta = String(formData.get("pregunta") || "").trim();
+  const respuesta = String(formData.get("respuesta") || "").trim();
+
+  if (!pregunta || !respuesta) {
+    return { error: "Pregunta y respuesta no pueden estar vacías." };
+  }
+
+  await query(
+    `INSERT INTO faq (pregunta, respuesta, activo) VALUES ($1, $2, true)`,
+    [pregunta, respuesta]
+  );
+
+  revalidatePath("/crm/faq");
+  return { success: "FAQ agregada." };
+}
+
 export async function actualizarAsesorNombreAction(
   _prevState: { error?: string; success?: string } | undefined,
   formData: FormData
