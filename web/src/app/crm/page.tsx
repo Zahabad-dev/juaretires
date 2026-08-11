@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { CRM_TABLES } from "@/lib/db";
 import { logoutAction } from "@/app/crm/actions";
+import NotificationBell from "@/app/crm/notification-bell";
 
 const DESCRIPTIONS: Record<string, string> = {
   solicitudes: "Cotizaciones solicitadas por clientes",
@@ -28,14 +29,17 @@ export default async function CrmHome() {
               {session.user?.name ?? session.user?.email}
             </p>
           </div>
-          <form action={logoutAction}>
-            <button
-              type="submit"
-              className="rounded-full border border-white/20 px-4 py-1.5 font-heading text-sm text-brand-text/80 transition-colors hover:border-brand-primary hover:text-brand-primary"
-            >
-              Cerrar sesión
-            </button>
-          </form>
+          <div className="flex items-center gap-3">
+            <NotificationBell />
+            <form action={logoutAction}>
+              <button
+                type="submit"
+                className="rounded-full border border-white/20 px-4 py-1.5 font-heading text-sm text-brand-text/80 transition-colors hover:border-brand-primary hover:text-brand-primary"
+              >
+                Cerrar sesión
+              </button>
+            </form>
+          </div>
         </header>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-2">

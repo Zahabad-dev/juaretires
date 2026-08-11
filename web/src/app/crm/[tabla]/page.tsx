@@ -10,6 +10,7 @@ import AsesorInput from "./asesor-input";
 import EliminarButton from "./eliminar-button";
 import CotizacionButton from "./cotizacion-button";
 import FaqRowForm from "./faq-row-form";
+import NotificationBell from "@/app/crm/notification-bell";
 
 export const dynamic = "force-dynamic";
 
@@ -77,6 +78,11 @@ export default async function CrmTablePage({
   );
   const columns = result.fields.map((f) => f.name);
 
+  // Entrar a solicitudes marca los leads pendientes como vistos
+  if (tabla === "solicitudes") {
+    await query(`UPDATE solicitudes SET notificado = true WHERE notificado = false`);
+  }
+
   return (
     <div className="min-h-screen bg-brand-bg px-6 py-10">
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
@@ -91,6 +97,7 @@ export default async function CrmTablePage({
               {info.table} · últimos {ROW_LIMIT} registros
             </p>
           </div>
+          <NotificationBell />
         </div>
 
         <div className="overflow-x-auto rounded-2xl border border-white/10">
