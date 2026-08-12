@@ -76,15 +76,31 @@ export default async function CrmTablePage({
     );
   }
 
+  // Cada asesor (asesor1..asesor5) solo ve sus propios leads asignados.
+  // Uriel (admin) y la cuenta genérica "ventas" ven todo.
+  const username = session.user?.email || "";
+  const miTurno = /^asesor[1-5]$/.test(username) ? username.replace("asesor", "a") : null;
+  const vistaFiltrada = tabla === "solicitudes" && miTurno !== null;
+
   // --- Tabla genérica ---
-  const result = await query(
-    `SELECT * FROM ${info.table} ORDER BY 1 DESC LIMIT ${ROW_LIMIT}`
-  );
+  const result = vistaFiltrada
+    ? await query(
+        `SELECT * FROM ${info.table} WHERE turno_asesor = $1 ORDER BY 1 DESC LIMIT ${ROW_LIMIT}`,
+        [miTurno]
+      )
+    : await query(`SELECT * FROM ${info.table} ORDER BY 1 DESC LIMIT ${ROW_LIMIT}`);
   const columns = result.fields.map((f) => f.name);
 
-  // Entrar a solicitudes marca los leads pendientes como vistos
+  // Entrar a solicitudes marca como vistos solo los leads que ese usuario puede ver
   if (tabla === "solicitudes") {
-    await query(`UPDATE solicitudes SET notificado = true WHERE notificado = false`);
+    if (vistaFiltrada) {
+      await query(
+        `UPDATE solicitudes SET notificado = true WHERE notificado = false AND turno_asesor = $1`,
+        [miTurno]
+      );
+    } else {
+      await query(`UPDATE solicitudes SET notificado = true WHERE notificado = false`);
+    }
   }
 
   return (
@@ -98,7 +114,7 @@ export default async function CrmTablePage({
             </Link>
             <h1 className="mt-1 font-heading text-2xl text-brand-text">{info.label}</h1>
             <p className="text-sm text-brand-text/50">
-              {info.table} · últimos {ROW_LIMIT} registros
+              {vistaFiltrada ? "Tus leads asignados" : `${info.table} · últimos ${ROW_LIMIT} registros`}
             </p>
           </div>
           <NotificationBell />

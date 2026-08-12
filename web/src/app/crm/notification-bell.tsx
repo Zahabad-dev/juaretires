@@ -1,10 +1,20 @@
 import Link from "next/link";
+import { auth } from "@/auth";
 import { query } from "@/lib/db";
 
 export default async function NotificationBell() {
-  const result = await query<{ count: string }>(
-    `SELECT COUNT(*)::text AS count FROM solicitudes WHERE notificado = false`
-  );
+  const session = await auth();
+  const username = session?.user?.email || "";
+  const miTurno = /^asesor[1-5]$/.test(username) ? username.replace("asesor", "a") : null;
+
+  const result = miTurno
+    ? await query<{ count: string }>(
+        `SELECT COUNT(*)::text AS count FROM solicitudes WHERE notificado = false AND turno_asesor = $1`,
+        [miTurno]
+      )
+    : await query<{ count: string }>(
+        `SELECT COUNT(*)::text AS count FROM solicitudes WHERE notificado = false`
+      );
   const count = Number(result.rows[0]?.count ?? 0);
 
   return (
