@@ -3,6 +3,7 @@
 import { useActionState, useMemo, useState } from "react";
 import { guardarCotizacionAction } from "@/app/crm/actions";
 import ProductoBuscador, { type ProductoCatalogo } from "./producto-buscador";
+import CatalogoModal from "./catalogo-modal";
 
 interface Item {
   producto: string;
@@ -23,6 +24,7 @@ export default function CotizacionForm({
     itemsIniciales.length > 0 ? itemsIniciales : [{ producto: "", cantidad: 1, precio: "" }]
   );
   const [state, action, pending] = useActionState(guardarCotizacionAction, undefined);
+  const [catalogoAbierto, setCatalogoAbierto] = useState(false);
 
   const totales = useMemo(() => {
     const subtotal = items.reduce((sum, it) => {
@@ -56,6 +58,13 @@ export default function CotizacionForm({
 
   function agregarFila() {
     setItems((prev) => [...prev, { producto: "", cantidad: 1, precio: "" }]);
+  }
+
+  function agregarDesdeCatalogo(nombre: string, precio: number | null) {
+    setItems((prev) => [
+      ...prev,
+      { producto: nombre, cantidad: 1, precio: precio !== null ? String(precio) : "" },
+    ]);
   }
 
   function quitarFila(i: number) {
@@ -143,13 +152,29 @@ export default function CotizacionForm({
         </table>
       </div>
 
-      <button
-        type="button"
-        onClick={agregarFila}
-        className="w-fit rounded-full border border-white/20 px-4 py-1.5 font-heading text-sm text-brand-text/80 transition-colors hover:border-brand-primary hover:text-brand-primary"
-      >
-        + Agregar producto
-      </button>
+      <div className="flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={agregarFila}
+          className="w-fit rounded-full border border-white/20 px-4 py-1.5 font-heading text-sm text-brand-text/80 transition-colors hover:border-brand-primary hover:text-brand-primary"
+        >
+          + Agregar producto
+        </button>
+        <button
+          type="button"
+          onClick={() => setCatalogoAbierto(true)}
+          className="w-fit rounded-full border border-brand-primary/40 px-4 py-1.5 font-heading text-sm text-brand-primary transition-colors hover:bg-brand-primary/10"
+        >
+          🔍 Buscar en catálogo
+        </button>
+      </div>
+
+      <CatalogoModal
+        abierto={catalogoAbierto}
+        onCerrar={() => setCatalogoAbierto(false)}
+        catalogo={catalogo}
+        onAgregar={agregarDesdeCatalogo}
+      />
 
       <div className="ml-auto flex w-full max-w-xs flex-col gap-1.5 rounded-2xl border border-white/10 bg-brand-surface2 p-4 text-sm">
         <div className="flex justify-between text-brand-text/70">

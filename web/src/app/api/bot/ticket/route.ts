@@ -40,10 +40,12 @@ export async function POST(req: Request) {
 
   const solicitudId = result.rows[0]?.id;
 
-  // Sugiere el producto en la cotizacion, ya con cantidad y precio si el bot
-  // los confirmo (Kordata). Si ya existe esa misma descripcion, actualiza
+  // Solo se sugiere en la cotizacion cuando hay un PRECIO real confirmado
+  // (consultar_existencia encontro el producto). Descripciones genericas sin
+  // precio (resumenes de la conversacion) se quedan solo en la solicitud,
+  // no ensucian la cotizacion. Si ya existe esa misma descripcion, actualiza
   // cantidad/precio en vez de duplicar la fila.
-  if (solicitudId && descripcion) {
+  if (solicitudId && descripcion && precioUnitario !== null) {
     await query(
       `INSERT INTO solicitud_items (solicitud_id, producto, cantidad, precio_unitario)
        VALUES ($1, $2, $3, $4)
