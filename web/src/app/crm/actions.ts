@@ -180,6 +180,73 @@ export async function guardarCotizacionAction(
   return { success: "Cotización guardada." };
 }
 
+const KORDATA_API_KEY =
+  "kd_live_kef_XooHBE14C2-5qVLTTgYTF-4c5LQt7MtFP5BjJORoDIwNKFF_xHP5xVmuaRRRTHGzU9vChDyWLkNpxIzhjw";
+
+interface KordataProducto {
+  id: number;
+  sku: string | null;
+  nombreProducto: string | null;
+  precioVenta: number | null;
+}
+
+// Sincroniza el catalogo completo de Kordata a la copia local (kordata_productos_cache).
+// Se llama manualmente (boton en /crm/productos), nunca automatico por interaccion del
+// usuario -- asi no se abusa de la API de Kordata.
+export async function sincronizarKordataAction(
+  _prevState: { error?: string; success?: string } | undefined
+): Promise<{ error?: string; success?: string }> {
+  const session = await auth();
+  if (session?.user?.rol !== "admin") {
+    return { error: "Solo Uriel puede sincronizar precios." };
+  }
+
+  let page = 0;
+  let totalPages = 1;
+  let cargados = 0;
+
+  try {
+    while (page < totalPages) {
+      const res = await fetch("https://api.kordata.mx/productos/listado", {
+        method: "POST",
+        headers: {
+          "x-api-key": KORDATA_API_KEY,
+          "x-api-version": "v1",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ page, size: 100 }),
+      });
+      if (!res.ok) {
+        return { error: `Kordata respondió ${res.status} en la página ${page + 1}.` };
+      }
+      const data = await res.json();
+      const content: KordataProducto[] = data?.data?.content ?? [];
+      totalPages = data?.data?.totalPages ?? 1;
+
+      for (const p of content) {
+        const nombre = p.nombreProducto || p.sku;
+        if (!nombre) continue;
+        await query(
+          `INSERT INTO kordata_productos_cache (kordata_id, sku, nombre, precio_venta, actualizado_en)
+           VALUES ($1, $2, $3, $4, NOW())
+           ON CONFLICT (kordata_id) DO UPDATE SET
+             sku = EXCLUDED.sku, nombre = EXCLUDED.nombre,
+             precio_venta = EXCLUDED.precio_venta, actualizado_en = NOW()`,
+          [p.id, p.sku, nombre, p.precioVenta]
+        );
+        cargados++;
+      }
+      page++;
+    }
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Error al conectar con Kordata." };
+  }
+
+  revalidatePath("/crm/productos");
+  revalidatePath("/crm/cotizacion");
+  return { success: `${cargados} productos sincronizados desde Kordata.` };
+}
+
 export async function actualizarAsesorNombreAction(
   _prevState: { error?: string; success?: string } | undefined,
   formData: FormData

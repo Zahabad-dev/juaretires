@@ -9,17 +9,32 @@ interface Item {
   precio: string; // string para permitir vacío mientras el asesor captura
 }
 
+interface ProductoCatalogo {
+  nombre: string;
+  precio: number | null;
+}
+
 export default function CotizacionForm({
   solicitudId,
   itemsIniciales,
+  catalogo,
 }: {
   solicitudId: string;
   itemsIniciales: Item[];
+  catalogo: ProductoCatalogo[];
 }) {
   const [items, setItems] = useState<Item[]>(
     itemsIniciales.length > 0 ? itemsIniciales : [{ producto: "", cantidad: 1, precio: "" }]
   );
   const [state, action, pending] = useActionState(guardarCotizacionAction, undefined);
+
+  const preciosPorNombre = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of catalogo) {
+      if (p.precio !== null) m.set(p.nombre, p.precio);
+    }
+    return m;
+  }, [catalogo]);
 
   const totales = useMemo(() => {
     const subtotal = items.reduce((sum, it) => {
@@ -33,11 +48,19 @@ export default function CotizacionForm({
 
   function actualizar(i: number, campo: keyof Item, valor: string) {
     setItems((prev) =>
-      prev.map((it, idx) =>
-        idx === i
-          ? { ...it, [campo]: campo === "cantidad" ? Math.max(1, Number(valor) || 1) : valor }
-          : it
-      )
+      prev.map((it, idx) => {
+        if (idx !== i) return it;
+        if (campo === "cantidad") return { ...it, cantidad: Math.max(1, Number(valor) || 1) };
+        if (campo === "producto") {
+          const precioEncontrado = preciosPorNombre.get(valor);
+          return {
+            ...it,
+            producto: valor,
+            precio: precioEncontrado !== undefined ? String(precioEncontrado) : it.precio,
+          };
+        }
+        return { ...it, [campo]: valor };
+      })
     );
   }
 
@@ -55,6 +78,16 @@ export default function CotizacionForm({
   return (
     <form action={action} className="flex flex-col gap-4">
       <input type="hidden" name="solicitud_id" value={solicitudId} />
+
+      <datalist id="catalogo-kordata">
+        {catalogo.map((p) => (
+          <option key={p.nombre} value={p.nombre} />
+        ))}
+      </datalist>
+      <p className="text-xs text-brand-text/40">
+        Escribe para buscar en el catálogo de Kordata ({catalogo.length} productos) — el precio se llena
+        solo al elegir uno.
+      </p>
 
       <div className="overflow-x-auto rounded-2xl border border-white/10">
         <table className="w-full min-w-[600px] text-left text-sm">
@@ -79,6 +112,7 @@ export default function CotizacionForm({
                       value={it.producto}
                       onChange={(e) => actualizar(i, "producto", e.target.value)}
                       placeholder="Descripción del producto o servicio"
+                      list="catalogo-kordata"
                       className="w-full rounded-lg border border-white/10 bg-brand-bg px-3 py-1.5 text-brand-text placeholder:text-brand-text/30 focus:border-brand-primary focus:outline-none"
                     />
                   </td>

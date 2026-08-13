@@ -46,6 +46,14 @@ export default async function CotizacionPage({
     precio: r.precio_unitario === null ? "" : String(r.precio_unitario),
   }));
 
+  const catalogoRes = await query<{ nombre: string; precio_venta: string | null }>(
+    `SELECT nombre, precio_venta FROM kordata_productos_cache ORDER BY nombre`
+  );
+  const catalogo = catalogoRes.rows.map((r) => ({
+    nombre: r.nombre,
+    precio: r.precio_venta === null ? null : Number(r.precio_venta),
+  }));
+
   return (
     <div className="min-h-screen bg-brand-bg px-6 py-10">
       <div className="mx-auto flex max-w-4xl flex-col gap-6">
@@ -59,7 +67,11 @@ export default async function CotizacionPage({
           <p className="text-sm text-brand-text/50">{solicitud.telefono}</p>
         </div>
 
-        <CotizacionForm solicitudId={String(solicitud.id)} itemsIniciales={itemsIniciales} />
+        <CotizacionForm
+          solicitudId={String(solicitud.id)}
+          itemsIniciales={itemsIniciales}
+          catalogo={catalogo}
+        />
       </div>
     </div>
   );
