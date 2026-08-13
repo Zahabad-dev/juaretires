@@ -1,0 +1,18 @@
+{
+  "name": "JAURE CRM",
+  "short_name": "JAURE CRM",
+  "description": "Panel de solicitudes y cotizaciones de JAURE Ingeniería Automotriz",
+  "start_url": "/crm",
+  "scope": "/crm",
+  "display": "standalone",
+  "background_color": "#0B0D11",
+  "theme_color": "#0033CC",
+  "icons": [
+    {
+      "src": "/brand/jj-isotipo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

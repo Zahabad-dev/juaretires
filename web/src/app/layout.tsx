@@ -18,6 +18,7 @@ export const metadata: Metadata = {
   title: "JAURE | Ingeniería Automotriz",
   description:
     "Centro Automotriz Integral: diagnóstico, mantenimiento, llantas, suspensión, frenos, alineación y balanceo. Ingeniería que protege tu inversión.",
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
