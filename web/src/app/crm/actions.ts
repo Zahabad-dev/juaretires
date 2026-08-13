@@ -201,42 +201,68 @@ export async function sincronizarKordataAction(
     return { error: "Solo Uriel puede sincronizar precios." };
   }
 
-  let page = 0;
-  let totalPages = 1;
+  async function fetchPagina(page: number) {
+    const res = await fetch("https://api.kordata.mx/productos/listado", {
+      method: "POST",
+      headers: {
+        "x-api-key": KORDATA_API_KEY,
+        "x-api-version": "v1",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ page, size: 100 }),
+    });
+    if (!res.ok) throw new Error(`Kordata respondió ${res.status} en la página ${page + 1}.`);
+    const data = await res.json();
+    return {
+      content: (data?.data?.content ?? []) as KordataProducto[],
+      totalPages: (data?.data?.totalPages ?? 1) as number,
+    };
+  }
+
+  async function guardarPagina(content: KordataProducto[]) {
+    const filas = content
+      .map((p) => ({ id: p.id, sku: p.sku, nombre: p.nombreProducto || p.sku, precio: p.precioVenta }))
+      .filter((f) => f.nombre);
+    if (filas.length === 0) return 0;
+
+    const values: unknown[] = [];
+    const placeholders = filas
+      .map((f, i) => {
+        const b = i * 4;
+        values.push(f.id, f.sku, f.nombre, f.precio);
+        return `($${b + 1}, $${b + 2}, $${b + 3}, $${b + 4}, NOW())`;
+      })
+      .join(",");
+
+    await query(
+      `INSERT INTO kordata_productos_cache (kordata_id, sku, nombre, precio_venta, actualizado_en)
+       VALUES ${placeholders}
+       ON CONFLICT (kordata_id) DO UPDATE SET
+         sku = EXCLUDED.sku, nombre = EXCLUDED.nombre,
+         precio_venta = EXCLUDED.precio_venta, actualizado_en = NOW()`,
+      values
+    );
+    return filas.length;
+  }
+
   let cargados = 0;
+  const CONCURRENCIA = 4; // paginas en paralelo por tanda -- moderado, no satura Kordata
 
   try {
-    while (page < totalPages) {
-      const res = await fetch("https://api.kordata.mx/productos/listado", {
-        method: "POST",
-        headers: {
-          "x-api-key": KORDATA_API_KEY,
-          "x-api-version": "v1",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ page, size: 100 }),
-      });
-      if (!res.ok) {
-        return { error: `Kordata respondió ${res.status} en la página ${page + 1}.` };
-      }
-      const data = await res.json();
-      const content: KordataProducto[] = data?.data?.content ?? [];
-      totalPages = data?.data?.totalPages ?? 1;
+    const primera = await fetchPagina(0);
+    cargados += await guardarPagina(primera.content);
+    const totalPages = primera.totalPages;
 
-      for (const p of content) {
-        const nombre = p.nombreProducto || p.sku;
-        if (!nombre) continue;
-        await query(
-          `INSERT INTO kordata_productos_cache (kordata_id, sku, nombre, precio_venta, actualizado_en)
-           VALUES ($1, $2, $3, $4, NOW())
-           ON CONFLICT (kordata_id) DO UPDATE SET
-             sku = EXCLUDED.sku, nombre = EXCLUDED.nombre,
-             precio_venta = EXCLUDED.precio_venta, actualizado_en = NOW()`,
-          [p.id, p.sku, nombre, p.precioVenta]
-        );
-        cargados++;
+    let page = 1;
+    while (page < totalPages) {
+      const tanda = [];
+      for (let i = 0; i < CONCURRENCIA && page < totalPages; i++, page++) {
+        tanda.push(fetchPagina(page));
       }
-      page++;
+      const resultados = await Promise.all(tanda);
+      for (const r of resultados) {
+        cargados += await guardarPagina(r.content);
+      }
     }
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Error al conectar con Kordata." };
