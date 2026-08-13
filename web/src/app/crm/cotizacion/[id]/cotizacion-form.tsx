@@ -2,16 +2,12 @@
 
 import { useActionState, useMemo, useState } from "react";
 import { guardarCotizacionAction } from "@/app/crm/actions";
+import ProductoBuscador, { type ProductoCatalogo } from "./producto-buscador";
 
 interface Item {
   producto: string;
   cantidad: number;
   precio: string; // string para permitir vacío mientras el asesor captura
-}
-
-interface ProductoCatalogo {
-  nombre: string;
-  precio: number | null;
 }
 
 export default function CotizacionForm({
@@ -28,14 +24,6 @@ export default function CotizacionForm({
   );
   const [state, action, pending] = useActionState(guardarCotizacionAction, undefined);
 
-  const preciosPorNombre = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const p of catalogo) {
-      if (p.precio !== null) m.set(p.nombre, p.precio);
-    }
-    return m;
-  }, [catalogo]);
-
   const totales = useMemo(() => {
     const subtotal = items.reduce((sum, it) => {
       const precio = parseFloat(it.precio);
@@ -51,16 +39,18 @@ export default function CotizacionForm({
       prev.map((it, idx) => {
         if (idx !== i) return it;
         if (campo === "cantidad") return { ...it, cantidad: Math.max(1, Number(valor) || 1) };
-        if (campo === "producto") {
-          const precioEncontrado = preciosPorNombre.get(valor);
-          return {
-            ...it,
-            producto: valor,
-            precio: precioEncontrado !== undefined ? String(precioEncontrado) : it.precio,
-          };
-        }
         return { ...it, [campo]: valor };
       })
+    );
+  }
+
+  function seleccionarProducto(i: number, nombre: string, precio: number | null) {
+    setItems((prev) =>
+      prev.map((it, idx) =>
+        idx === i
+          ? { ...it, producto: nombre, precio: precio !== null ? String(precio) : it.precio }
+          : it
+      )
     );
   }
 
@@ -79,14 +69,9 @@ export default function CotizacionForm({
     <form action={action} className="flex flex-col gap-4">
       <input type="hidden" name="solicitud_id" value={solicitudId} />
 
-      <datalist id="catalogo-kordata">
-        {catalogo.map((p) => (
-          <option key={p.nombre} value={p.nombre} />
-        ))}
-      </datalist>
       <p className="text-xs text-brand-text/40">
-        Escribe para buscar en el catálogo de Kordata ({catalogo.length} productos) — el precio se llena
-        solo al elegir uno.
+        Escribe para buscar en el catálogo de Kordata ({catalogo.length} productos), o teclea libre para
+        un servicio (alineación, balanceo, etc.) — el precio se llena solo al elegir un producto de la lista.
       </p>
 
       <div className="overflow-x-auto rounded-2xl border border-white/10">
@@ -107,13 +92,13 @@ export default function CotizacionForm({
               return (
                 <tr key={i} className="border-t border-white/5">
                   <td className="px-4 py-2">
-                    <input
+                    <ProductoBuscador
                       name="producto"
                       value={it.producto}
-                      onChange={(e) => actualizar(i, "producto", e.target.value)}
-                      placeholder="Descripción del producto o servicio"
-                      list="catalogo-kordata"
-                      className="w-full rounded-lg border border-white/10 bg-brand-bg px-3 py-1.5 text-brand-text placeholder:text-brand-text/30 focus:border-brand-primary focus:outline-none"
+                      onChange={(valor) => actualizar(i, "producto", valor)}
+                      onSeleccionar={(nombre, precio) => seleccionarProducto(i, nombre, precio)}
+                      catalogo={catalogo}
+                      placeholder="Buscar producto o escribir un servicio"
                     />
                   </td>
                   <td className="px-4 py-2">

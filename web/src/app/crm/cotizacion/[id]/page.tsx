@@ -46,11 +46,12 @@ export default async function CotizacionPage({
     precio: r.precio_unitario === null ? "" : String(r.precio_unitario),
   }));
 
-  const catalogoRes = await query<{ nombre: string; precio_venta: string | null }>(
-    `SELECT nombre, precio_venta FROM kordata_productos_cache ORDER BY nombre`
+  const catalogoRes = await query<{ nombre: string; sku: string | null; precio_venta: string | null }>(
+    `SELECT nombre, sku, precio_venta FROM kordata_productos_cache ORDER BY nombre`
   );
   const catalogo = catalogoRes.rows.map((r) => ({
     nombre: r.nombre,
+    sku: r.sku,
     precio: r.precio_venta === null ? null : Number(r.precio_venta),
   }));
 
