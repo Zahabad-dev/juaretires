@@ -15,16 +15,19 @@ export default function CotizacionForm({
   solicitudId,
   itemsIniciales,
   catalogo,
+  sinIvaInicial,
 }: {
   solicitudId: string;
   itemsIniciales: Item[];
   catalogo: ProductoCatalogo[];
+  sinIvaInicial: boolean;
 }) {
   const [items, setItems] = useState<Item[]>(
     itemsIniciales.length > 0 ? itemsIniciales : [{ producto: "", cantidad: 1, precio: "" }]
   );
   const [state, action, pending] = useActionState(guardarCotizacionAction, undefined);
   const [catalogoAbierto, setCatalogoAbierto] = useState(false);
+  const [sinIva, setSinIva] = useState(sinIvaInicial);
 
   const totales = useMemo(() => {
     const subtotal = items.reduce((sum, it) => {
@@ -32,9 +35,9 @@ export default function CotizacionForm({
       if (Number.isNaN(precio)) return sum;
       return sum + precio * it.cantidad;
     }, 0);
-    const iva = subtotal * 0.16;
+    const iva = sinIva ? 0 : subtotal * 0.16;
     return { subtotal, iva, total: subtotal + iva };
-  }, [items]);
+  }, [items, sinIva]);
 
   function actualizar(i: number, campo: keyof Item, valor: string) {
     setItems((prev) =>
@@ -176,18 +179,30 @@ export default function CotizacionForm({
         onAgregar={agregarDesdeCatalogo}
       />
 
-      <div className="ml-auto flex w-full max-w-xs flex-col gap-1.5 rounded-2xl border border-white/10 bg-brand-surface2 p-4 text-sm">
-        <div className="flex justify-between text-brand-text/70">
-          <span>Subtotal</span>
-          <span>{fmt(totales.subtotal)}</span>
-        </div>
-        <div className="flex justify-between text-brand-text/70">
-          <span>IVA (16%)</span>
-          <span>{fmt(totales.iva)}</span>
-        </div>
-        <div className="flex justify-between border-t border-white/10 pt-1.5 font-heading text-brand-primary">
-          <span>Total</span>
-          <span>{fmt(totales.total)}</span>
+      <div className="ml-auto flex w-full max-w-xs flex-col gap-2.5 rounded-2xl border border-white/10 bg-brand-surface2 p-4 text-sm">
+        <label className="flex items-center gap-2 text-xs text-brand-text/60">
+          <input
+            type="checkbox"
+            name="sin_iva"
+            checked={sinIva}
+            onChange={(e) => setSinIva(e.target.checked)}
+            className="h-4 w-4 accent-brand-primary"
+          />
+          Cotización sin IVA
+        </label>
+        <div className="flex flex-col gap-1.5 border-t border-white/10 pt-2.5">
+          <div className="flex justify-between text-brand-text/70">
+            <span>Subtotal</span>
+            <span>{fmt(totales.subtotal)}</span>
+          </div>
+          <div className="flex justify-between text-brand-text/70">
+            <span>IVA (16%)</span>
+            <span>{sinIva ? "Exento" : fmt(totales.iva)}</span>
+          </div>
+          <div className="flex justify-between border-t border-white/10 pt-1.5 font-heading text-brand-primary">
+            <span>Total</span>
+            <span>{fmt(totales.total)}</span>
+          </div>
         </div>
       </div>
 

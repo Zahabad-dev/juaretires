@@ -15,7 +15,7 @@ export async function GET(
 
   const { id } = await params;
   const result = await query(
-    `SELECT id, telefono, nombre, canal, productos, notas, creado_en
+    `SELECT id, telefono, nombre, canal, productos, notas, creado_en, sin_iva
      FROM solicitudes WHERE id = $1`,
     [id]
   );
@@ -32,6 +32,7 @@ export async function GET(
     productos: string | null;
     notas: string | null;
     creado_en: Date;
+    sin_iva: boolean;
   };
 
   const itemsResult = await query(
@@ -77,7 +78,7 @@ export async function GET(
     </tr>`)
         .join("\n");
 
-  const iva = subtotal * 0.16;
+  const iva = s.sin_iva ? 0 : subtotal * 0.16;
   const total = subtotal + iva;
   const hayPreciosReales = items.some((it) => it.precio_unitario !== null);
 
@@ -312,7 +313,7 @@ export async function GET(
       <div class="totals">
         <table>
           <tr><td>Subtotal:</td><td style="text-align:right">${hayPreciosReales ? money(subtotal) : "$—"}</td></tr>
-          <tr><td>IVA (16%):</td><td style="text-align:right">${hayPreciosReales ? money(iva) : "$—"}</td></tr>
+          <tr><td>IVA (16%):</td><td style="text-align:right">${s.sin_iva ? "Exento" : hayPreciosReales ? money(iva) : "$—"}</td></tr>
           <tr class="total-row"><td>TOTAL:</td><td style="text-align:right">${hayPreciosReales ? money(total) : "$—"}</td></tr>
         </table>
       </div>

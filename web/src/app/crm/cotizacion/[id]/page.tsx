@@ -10,6 +10,7 @@ interface SolicitudRow {
   id: number;
   nombre: string | null;
   telefono: string;
+  sin_iva: boolean;
 }
 
 interface ItemRow {
@@ -29,7 +30,7 @@ export default async function CotizacionPage({
   const { id } = await params;
 
   const solicitudRes = await query<SolicitudRow>(
-    `SELECT id, nombre, telefono FROM solicitudes WHERE id = $1`,
+    `SELECT id, nombre, telefono, sin_iva FROM solicitudes WHERE id = $1`,
     [id]
   );
   const solicitud = solicitudRes.rows[0];
@@ -72,6 +73,7 @@ export default async function CotizacionPage({
           solicitudId={String(solicitud.id)}
           itemsIniciales={itemsIniciales}
           catalogo={catalogo}
+          sinIvaInicial={solicitud.sin_iva}
         />
       </div>
     </div>

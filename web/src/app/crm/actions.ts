@@ -161,11 +161,13 @@ export async function guardarCotizacionAction(
     const s = String(v).trim();
     return s === "" ? null : Number(s);
   });
+  const sinIva = formData.get("sin_iva") === "on";
 
   const filas = productos
     .map((producto, i) => ({ producto, cantidad: cantidades[i] ?? 1, precio: precios[i] ?? null }))
     .filter((f) => f.producto !== "");
 
+  await query(`UPDATE solicitudes SET sin_iva = $1 WHERE id = $2`, [sinIva, solicitudId]);
   await query(`DELETE FROM solicitud_items WHERE solicitud_id = $1`, [solicitudId]);
 
   for (let i = 0; i < filas.length; i++) {
