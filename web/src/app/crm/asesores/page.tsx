@@ -11,8 +11,8 @@ export default async function AsesoresPage() {
   if (!session) redirect("/crm/login");
   if (session.user?.rol !== "admin") redirect("/crm");
 
-  const result = await query<{ turno: string; nombre: string }>(
-    `SELECT turno, nombre FROM asesores ORDER BY turno`
+  const result = await query<{ turno: string; nombre: string; activo: boolean }>(
+    `SELECT turno, nombre, activo FROM asesores ORDER BY turno`
   );
 
   return (
@@ -24,13 +24,13 @@ export default async function AsesoresPage() {
           </Link>
           <h1 className="mt-1 font-heading text-2xl text-brand-text">Asesores</h1>
           <p className="text-sm text-brand-text/50">
-            Nombre real de cada asesor en la rotación del bot (a1–a5).
+            Nombre real de cada asesor en la rotación del bot. Desactiva a los que ya no reciban leads.
           </p>
         </div>
 
         <div className="flex flex-col gap-3">
           {result.rows.map((r) => (
-            <AsesorNombreForm key={r.turno} turno={r.turno} nombre={r.nombre} />
+            <AsesorNombreForm key={r.turno} turno={r.turno} nombre={r.nombre} activo={r.activo} />
           ))}
         </div>
         {result.rows.length === 0 && (

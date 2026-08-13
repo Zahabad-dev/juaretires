@@ -286,14 +286,15 @@ export async function actualizarAsesorNombreAction(
 
   const turno = String(formData.get("turno") || "").trim();
   const nombre = String(formData.get("nombre") || "").trim();
+  const activo = formData.get("activo") === "on";
 
   if (!turno || !nombre) {
     return { error: "El nombre no puede estar vacío." };
   }
 
   await query(
-    `UPDATE asesores SET nombre = $1, actualizado = NOW() WHERE turno = $2`,
-    [nombre, turno]
+    `UPDATE asesores SET nombre = $1, activo = $2, actualizado = NOW() WHERE turno = $3`,
+    [nombre, activo, turno]
   );
 
   revalidatePath("/crm/asesores");

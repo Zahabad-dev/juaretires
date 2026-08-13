@@ -6,9 +6,11 @@ import { actualizarAsesorNombreAction } from "@/app/crm/actions";
 export default function AsesorNombreForm({
   turno,
   nombre,
+  activo,
 }: {
   turno: string;
   nombre: string;
+  activo: boolean;
 }) {
   const [state, action, pending] = useActionState(actualizarAsesorNombreAction, undefined);
 
@@ -25,6 +27,15 @@ export default function AsesorNombreForm({
         className="flex-1 rounded-lg border border-white/10 bg-brand-bg px-3 py-2 text-sm text-brand-text placeholder:text-brand-text/30 focus:border-brand-primary focus:outline-none"
         placeholder="Nombre real del asesor"
       />
+      <label className="flex shrink-0 items-center gap-2 text-xs text-brand-text/60">
+        <input
+          type="checkbox"
+          name="activo"
+          defaultChecked={activo}
+          className="h-4 w-4 accent-brand-primary"
+        />
+        Activo
+      </label>
       {state?.error && <p className="text-xs text-red-400">{state.error}</p>}
       {state?.success && <p className="text-xs text-green-400">Guardado</p>}
       <button
