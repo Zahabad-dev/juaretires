@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export default async function AsesoresPage() {
   const session = await auth();
   if (!session) redirect("/crm/login");
-  if (session.user?.rol !== "admin") redirect("/crm");
+  if (session.user?.rol !== "admin" && session.user?.rol !== "agencia") redirect("/crm");
 
   const result = await query<{ turno: string; nombre: string; activo: boolean }>(
     `SELECT turno, nombre, activo FROM asesores ORDER BY turno`

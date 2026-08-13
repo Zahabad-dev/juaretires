@@ -19,7 +19,7 @@ interface ProductoRow {
 export default async function ProductosPage() {
   const session = await auth();
   if (!session) redirect("/crm/login");
-  if (session.user?.rol !== "admin") redirect("/crm");
+  if (session.user?.rol !== "admin" && session.user?.rol !== "agencia") redirect("/crm");
 
   const result = await query<ProductoRow>(
     `SELECT id, nombre, medida, descripcion, imagen, activo FROM productos_estrella ORDER BY orden`

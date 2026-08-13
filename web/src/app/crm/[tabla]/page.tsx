@@ -36,7 +36,7 @@ export default async function CrmTablePage({
 
   // --- FAQ: edición inline ---
   if (tabla === "faq") {
-    const puedeEditarFaq = session.user?.rol === "admin";
+    const puedeEditarFaq = session.user?.rol === "admin" || session.user?.rol === "agencia";
     const result = await query(
       `SELECT id, pregunta, respuesta, activo FROM faq ORDER BY id`
     );

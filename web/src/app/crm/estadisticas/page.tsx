@@ -37,7 +37,7 @@ interface ProductoRow {
 export default async function EstadisticasPage() {
   const session = await auth();
   if (!session) redirect("/crm/login");
-  if (session.user?.rol !== "admin") redirect("/crm");
+  if (session.user?.rol !== "admin" && session.user?.rol !== "agencia") redirect("/crm");
 
   const [kpi, porAsesor, porEstado, tendencia, productos] = await Promise.all([
     query<KpiRow>(`

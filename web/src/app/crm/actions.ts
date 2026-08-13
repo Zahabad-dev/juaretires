@@ -2,11 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 import { AuthError } from "next-auth";
+import bcrypt from "bcryptjs";
 import { auth, signIn, signOut } from "@/auth";
 import { query } from "@/lib/db";
 
 const PRIORIDADES = ["BAJA", "MEDIA", "ALTA"] as const;
 const ESTADOS = ["Nuevo", "Escalado", "Atendido", "Cerrado"] as const;
+
+// admin = Uriel (dueño JAURE); agencia = Black Sheep (Erik) -- ambos tienen acceso total al panel.
+function esAdmin(rol: string | undefined) {
+  return rol === "admin" || rol === "agencia";
+}
 
 export async function loginAction(
   _prevState: string | undefined,
@@ -99,7 +105,7 @@ export async function actualizarFaqAction(
   formData: FormData
 ): Promise<{ error?: string; success?: string }> {
   const session = await auth();
-  if (session?.user?.rol !== "admin") {
+  if (!esAdmin(session?.user?.rol)) {
     return { error: "Solo Uriel puede editar la FAQ." };
   }
 
@@ -126,7 +132,7 @@ export async function crearFaqAction(
   formData: FormData
 ): Promise<{ error?: string; success?: string }> {
   const session = await auth();
-  if (session?.user?.rol !== "admin") {
+  if (!esAdmin(session?.user?.rol)) {
     return { error: "Solo Uriel puede agregar FAQ." };
   }
 
@@ -199,7 +205,7 @@ export async function sincronizarKordataAction(
   _prevState: { error?: string; success?: string } | undefined
 ): Promise<{ error?: string; success?: string }> {
   const session = await auth();
-  if (session?.user?.rol !== "admin") {
+  if (!esAdmin(session?.user?.rol)) {
     return { error: "Solo Uriel puede sincronizar precios." };
   }
 
@@ -280,7 +286,7 @@ export async function actualizarAsesorNombreAction(
   formData: FormData
 ): Promise<{ error?: string; success?: string }> {
   const session = await auth();
-  if (session?.user?.rol !== "admin") {
+  if (!esAdmin(session?.user?.rol)) {
     return { error: "Solo Uriel puede asignar nombres de asesores." };
   }
 
@@ -306,7 +312,7 @@ export async function actualizarProductoAction(
   formData: FormData
 ): Promise<{ error?: string; success?: string }> {
   const session = await auth();
-  if (session?.user?.rol !== "admin") {
+  if (!esAdmin(session?.user?.rol)) {
     return { error: "Solo Uriel puede editar productos estrella." };
   }
 
@@ -328,4 +334,29 @@ export async function actualizarProductoAction(
   revalidatePath("/crm/productos");
   revalidatePath("/");
   return { success: "Producto actualizado." };
+}
+
+// Solo rol "agencia" (Black Sheep) puede resetear contraseñas -- pensado para prestar
+// la cuenta "soporte" y poder quitarle el acceso cambiando la contraseña cuando se termine.
+export async function cambiarPasswordUsuarioAction(
+  _prevState: { error?: string; success?: string } | undefined,
+  formData: FormData
+): Promise<{ error?: string; success?: string }> {
+  const session = await auth();
+  if (session?.user?.rol !== "agencia") {
+    return { error: "No tienes permiso para cambiar contraseñas." };
+  }
+
+  const id = String(formData.get("id") || "");
+  const password = String(formData.get("password") || "");
+
+  if (!id || password.length < 8) {
+    return { error: "La contraseña debe tener al menos 8 caracteres." };
+  }
+
+  const hash = await bcrypt.hash(password, 10);
+  await query(`UPDATE crm_usuarios SET password_hash = $1 WHERE id = $2`, [hash, id]);
+
+  revalidatePath("/crm/usuarios");
+  return { success: "Contraseña actualizada." };
 }
