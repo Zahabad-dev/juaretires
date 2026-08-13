@@ -18,6 +18,11 @@ export async function POST(req: Request) {
   const prioridad = body.intencion_compra ? "ALTA" : "MEDIA";
   const descripcion = String(body.descripcion || "").slice(0, 1000);
   const ultimoMensaje = String(body.ultimo_mensaje || "").slice(0, 1000);
+  const cantidad = Number(body.cantidad) > 0 ? Math.round(Number(body.cantidad)) : 1;
+  const precioUnitario =
+    body.precio_unitario !== undefined && body.precio_unitario !== null && body.precio_unitario !== ""
+      ? Number(body.precio_unitario)
+      : null;
 
   const result = await query<{ id: number }>(
     `INSERT INTO solicitudes (telefono, nombre, productos, ultimo_mensaje, canal, estado, prioridad, actualizado)
@@ -35,14 +40,17 @@ export async function POST(req: Request) {
 
   const solicitudId = result.rows[0]?.id;
 
-  // Sugiere el producto en la cotizacion (precio queda pendiente de captura
-  // por el asesor). Si ya existe esa misma descripcion, no duplica la fila.
+  // Sugiere el producto en la cotizacion, ya con cantidad y precio si el bot
+  // los confirmo (Kordata). Si ya existe esa misma descripcion, actualiza
+  // cantidad/precio en vez de duplicar la fila.
   if (solicitudId && descripcion) {
     await query(
-      `INSERT INTO solicitud_items (solicitud_id, producto, cantidad)
-       VALUES ($1, $2, 1)
-       ON CONFLICT (solicitud_id, producto) DO NOTHING`,
-      [solicitudId, descripcion]
+      `INSERT INTO solicitud_items (solicitud_id, producto, cantidad, precio_unitario)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (solicitud_id, producto) DO UPDATE SET
+         cantidad = EXCLUDED.cantidad,
+         precio_unitario = COALESCE(EXCLUDED.precio_unitario, solicitud_items.precio_unitario)`,
+      [solicitudId, descripcion, cantidad, precioUnitario]
     );
   }
 
