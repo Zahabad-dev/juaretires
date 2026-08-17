@@ -64,7 +64,9 @@ export default function PushSetup() {
         );
       }
 
-      const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+      const keyRes = await fetch("/api/crm/push/vapid-public-key");
+      const keyData: { publicKey: string | null } = await keyRes.json();
+      const publicKey = keyData.publicKey;
       if (!publicKey) {
         throw new Error("Notificaciones sin configurar en el servidor. Avísale a soporte.");
       }
