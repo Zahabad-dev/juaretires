@@ -348,6 +348,8 @@ export async function GET(
 
     <div class="footer">
       Esta cotización es válida por 7 días a partir de la fecha de emisión. · <strong>JAURE Ingeniería Automotriz</strong>
+      <br />
+      Dudas o para confirmar tu pedido — llamada o WhatsApp: <strong>775 111 0944</strong> · <strong>775 162 7027</strong>
     </div>
   </div>
 
