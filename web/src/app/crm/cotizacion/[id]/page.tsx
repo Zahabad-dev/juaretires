@@ -12,6 +12,8 @@ interface SolicitudRow {
   telefono: string;
   sin_iva: boolean;
   promocion_id: number | null;
+  cotizacion_enviada: boolean;
+  cotizacion_generada_en: Date | null;
 }
 
 interface ItemRow {
@@ -39,7 +41,8 @@ export default async function CotizacionPage({
   const { id } = await params;
 
   const solicitudRes = await query<SolicitudRow>(
-    `SELECT id, nombre, telefono, sin_iva, promocion_id FROM solicitudes WHERE id = $1`,
+    `SELECT id, nombre, telefono, sin_iva, promocion_id, cotizacion_enviada, cotizacion_generada_en
+     FROM solicitudes WHERE id = $1`,
     [id]
   );
   const solicitud = solicitudRes.rows[0];
@@ -83,9 +86,22 @@ export default async function CotizacionPage({
           <Link href="/crm/solicitudes" className="text-sm text-brand-text/50 hover:text-brand-primary">
             ← Volver
           </Link>
-          <h1 className="mt-1 font-heading text-2xl text-brand-text">
-            Cotización — {solicitud.nombre || "Sin nombre"}
-          </h1>
+          <div className="mt-1 flex flex-wrap items-center gap-3">
+            <h1 className="font-heading text-2xl text-brand-text">
+              Cotización — {solicitud.nombre || "Sin nombre"}
+            </h1>
+            {solicitud.cotizacion_generada_en && (
+              <span
+                className={`rounded-full px-3 py-1 text-xs font-heading ${
+                  solicitud.cotizacion_enviada
+                    ? "bg-green-500/15 text-green-400"
+                    : "bg-amber-500/15 text-amber-400"
+                }`}
+              >
+                {solicitud.cotizacion_enviada ? "✓ Enviada" : "⏳ Pendiente de enviar"}
+              </span>
+            )}
+          </div>
           <p className="text-sm text-brand-text/50">{solicitud.telefono}</p>
         </div>
 
@@ -94,6 +110,7 @@ export default async function CotizacionPage({
           itemsIniciales={itemsIniciales}
           catalogo={catalogo}
           sinIvaInicial={solicitud.sin_iva}
+          cotizacionEnviadaInicial={solicitud.cotizacion_enviada}
           promociones={promociones}
           promocionIdInicial={solicitud.promocion_id}
         />

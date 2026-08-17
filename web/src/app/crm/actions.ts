@@ -169,6 +169,7 @@ export async function guardarCotizacionAction(
   });
   const aplicaPromocionFlags = formData.getAll("aplica_promocion").map((v) => String(v) === "1");
   const sinIva = formData.get("sin_iva") === "on";
+  const cotizacionEnviada = formData.get("cotizacion_enviada") === "on";
 
   const filas = productos
     .map((producto, i) => ({
@@ -178,6 +179,11 @@ export async function guardarCotizacionAction(
       aplicaPromocion: aplicaPromocionFlags[i] ?? true,
     }))
     .filter((f) => f.producto !== "");
+
+  // "Generada" se marca sola la primera vez que hay al menos un producto con
+  // precio real -- a partir de ahí corre el reloj del recordatorio al asesor
+  // si no la marca como enviada. Nunca se vuelve a poner en null después.
+  const hayPrecioReal = filas.some((f) => f.precio !== null);
 
   // Una sola promoción por cotización -- no hay descuento sobre descuento.
   // Se guarda nombre/porcentaje como "foto" al momento de aplicarla, no una
@@ -200,8 +206,16 @@ export async function guardarCotizacionAction(
   }
 
   await query(
-    `UPDATE solicitudes SET sin_iva = $1, promocion_id = $2, promocion_nombre = $3, promocion_porcentaje = $4 WHERE id = $5`,
-    [sinIva, promocionId, promocionNombre, promocionPorcentaje, solicitudId]
+    `UPDATE solicitudes SET
+       sin_iva = $1,
+       promocion_id = $2,
+       promocion_nombre = $3,
+       promocion_porcentaje = $4,
+       cotizacion_enviada = $5,
+       cotizacion_enviada_en = CASE WHEN $5 AND cotizacion_enviada_en IS NULL THEN NOW() ELSE cotizacion_enviada_en END,
+       cotizacion_generada_en = COALESCE(cotizacion_generada_en, CASE WHEN $6 THEN NOW() ELSE NULL END)
+     WHERE id = $7`,
+    [sinIva, promocionId, promocionNombre, promocionPorcentaje, cotizacionEnviada, hayPrecioReal, solicitudId]
   );
   await query(`DELETE FROM solicitud_items WHERE solicitud_id = $1`, [solicitudId]);
 

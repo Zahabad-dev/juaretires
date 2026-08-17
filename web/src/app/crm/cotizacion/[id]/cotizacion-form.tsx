@@ -30,6 +30,7 @@ export default function CotizacionForm({
   itemsIniciales,
   catalogo,
   sinIvaInicial,
+  cotizacionEnviadaInicial,
   promociones,
   promocionIdInicial,
 }: {
@@ -37,6 +38,7 @@ export default function CotizacionForm({
   itemsIniciales: Item[];
   catalogo: ProductoCatalogo[];
   sinIvaInicial: boolean;
+  cotizacionEnviadaInicial: boolean;
   promociones: Promocion[];
   promocionIdInicial: number | null;
 }) {
@@ -48,6 +50,7 @@ export default function CotizacionForm({
   const [state, action, pending] = useActionState(guardarCotizacionAction, undefined);
   const [catalogoAbierto, setCatalogoAbierto] = useState(false);
   const [sinIva, setSinIva] = useState(sinIvaInicial);
+  const [cotizacionEnviada, setCotizacionEnviada] = useState(cotizacionEnviadaInicial);
   const [promocionId, setPromocionId] = useState<string>(
     promocionIdInicial !== null ? String(promocionIdInicial) : ""
   );
@@ -262,6 +265,21 @@ export default function CotizacionForm({
           />
           Cotización sin IVA
         </label>
+        <label className="flex items-center gap-2 text-xs text-brand-text/60">
+          <input
+            type="checkbox"
+            name="cotizacion_enviada"
+            checked={cotizacionEnviada}
+            onChange={(e) => setCotizacionEnviada(e.target.checked)}
+            className="h-4 w-4 accent-brand-primary"
+          />
+          Ya se la mandé al cliente por WhatsApp
+        </label>
+        {!cotizacionEnviada && (
+          <p className="text-xs text-amber-400/80">
+            Mientras no marques esto, te vamos a seguir recordando cada 3 min en el CRM.
+          </p>
+        )}
         <div className="flex flex-col gap-1.5 border-t border-white/10 pt-2.5">
           <div className="flex justify-between text-brand-text/70">
             <span>Subtotal</span>
