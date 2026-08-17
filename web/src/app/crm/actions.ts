@@ -167,20 +167,49 @@ export async function guardarCotizacionAction(
     const s = String(v).trim();
     return s === "" ? null : Number(s);
   });
+  const aplicaPromocionFlags = formData.getAll("aplica_promocion").map((v) => String(v) === "1");
   const sinIva = formData.get("sin_iva") === "on";
 
   const filas = productos
-    .map((producto, i) => ({ producto, cantidad: cantidades[i] ?? 1, precio: precios[i] ?? null }))
+    .map((producto, i) => ({
+      producto,
+      cantidad: cantidades[i] ?? 1,
+      precio: precios[i] ?? null,
+      aplicaPromocion: aplicaPromocionFlags[i] ?? true,
+    }))
     .filter((f) => f.producto !== "");
 
-  await query(`UPDATE solicitudes SET sin_iva = $1 WHERE id = $2`, [sinIva, solicitudId]);
+  // Una sola promoción por cotización -- no hay descuento sobre descuento.
+  // Se guarda nombre/porcentaje como "foto" al momento de aplicarla, no una
+  // referencia viva al catálogo, para no alterar cotizaciones ya guardadas.
+  const promocionIdRaw = String(formData.get("promocion_id") || "");
+  let promocionId: number | null = null;
+  let promocionNombre: string | null = null;
+  let promocionPorcentaje: number | null = null;
+  if (promocionIdRaw) {
+    const promoRes = await query<{ id: number; nombre: string; porcentaje: string }>(
+      `SELECT id, nombre, porcentaje FROM promociones WHERE id = $1 AND activo = true`,
+      [promocionIdRaw]
+    );
+    const promo = promoRes.rows[0];
+    if (promo) {
+      promocionId = promo.id;
+      promocionNombre = promo.nombre;
+      promocionPorcentaje = Number(promo.porcentaje);
+    }
+  }
+
+  await query(
+    `UPDATE solicitudes SET sin_iva = $1, promocion_id = $2, promocion_nombre = $3, promocion_porcentaje = $4 WHERE id = $5`,
+    [sinIva, promocionId, promocionNombre, promocionPorcentaje, solicitudId]
+  );
   await query(`DELETE FROM solicitud_items WHERE solicitud_id = $1`, [solicitudId]);
 
   for (let i = 0; i < filas.length; i++) {
     const f = filas[i];
     await query(
-      `INSERT INTO solicitud_items (solicitud_id, producto, cantidad, precio_unitario, orden) VALUES ($1, $2, $3, $4, $5)`,
-      [solicitudId, f.producto, f.cantidad, f.precio, i]
+      `INSERT INTO solicitud_items (solicitud_id, producto, cantidad, precio_unitario, orden, aplica_promocion) VALUES ($1, $2, $3, $4, $5, $6)`,
+      [solicitudId, f.producto, f.cantidad, f.precio, i, f.aplicaPromocion]
     );
   }
 
@@ -359,4 +388,57 @@ export async function cambiarPasswordUsuarioAction(
 
   revalidatePath("/crm/usuarios");
   return { success: "Contraseña actualizada." };
+}
+
+const CATEGORIAS_PROMOCION = ["promocion", "institucion", "cupon"] as const;
+
+// Catálogo de promociones/instituciones/cupones -- solo admin/agencia lo administra.
+// El vendedor solo elige UNA al cotizar (ver guardarCotizacionAction), nunca se combinan.
+export async function guardarPromocionAction(
+  _prevState: { error?: string; success?: string } | undefined,
+  formData: FormData
+): Promise<{ error?: string; success?: string }> {
+  const session = await auth();
+  if (!esAdmin(session?.user?.rol)) {
+    return { error: "No tienes permiso para editar promociones." };
+  }
+
+  const id = String(formData.get("id") || "");
+  const nombre = String(formData.get("nombre") || "").trim();
+  const porcentaje = Number(formData.get("porcentaje"));
+  const categoria = String(formData.get("categoria") || "promocion");
+  const activo = formData.get("activo") === "on";
+
+  if (!nombre || !Number.isFinite(porcentaje) || porcentaje <= 0 || porcentaje > 100) {
+    return { error: "Nombre válido y porcentaje entre 1 y 100." };
+  }
+  if (!CATEGORIAS_PROMOCION.includes(categoria as typeof CATEGORIAS_PROMOCION[number])) {
+    return { error: "Categoría inválida." };
+  }
+
+  if (id) {
+    await query(
+      `UPDATE promociones SET nombre = $1, porcentaje = $2, categoria = $3, activo = $4 WHERE id = $5`,
+      [nombre, porcentaje, categoria, activo, id]
+    );
+  } else {
+    await query(
+      `INSERT INTO promociones (nombre, porcentaje, categoria, activo) VALUES ($1, $2, $3, $4)`,
+      [nombre, porcentaje, categoria, activo]
+    );
+  }
+
+  revalidatePath("/crm/promociones");
+  return { success: "Promoción guardada." };
+}
+
+export async function eliminarPromocionAction(formData: FormData) {
+  const session = await auth();
+  if (!esAdmin(session?.user?.rol)) return;
+
+  const id = String(formData.get("id") || "");
+  if (!id) return;
+
+  await query(`DELETE FROM promociones WHERE id = $1`, [id]);
+  revalidatePath("/crm/promociones");
 }

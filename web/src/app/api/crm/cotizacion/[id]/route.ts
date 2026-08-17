@@ -15,7 +15,8 @@ export async function GET(
 
   const { id } = await params;
   const result = await query(
-    `SELECT id, telefono, nombre, canal, productos, notas, creado_en, sin_iva
+    `SELECT id, telefono, nombre, canal, productos, notas, creado_en, sin_iva,
+            promocion_nombre, promocion_porcentaje
      FROM solicitudes WHERE id = $1`,
     [id]
   );
@@ -33,16 +34,19 @@ export async function GET(
     notas: string | null;
     creado_en: Date;
     sin_iva: boolean;
+    promocion_nombre: string | null;
+    promocion_porcentaje: string | null;
   };
 
   const itemsResult = await query(
-    `SELECT producto, cantidad, precio_unitario FROM solicitud_items WHERE solicitud_id = $1 ORDER BY orden, id`,
+    `SELECT producto, cantidad, precio_unitario, aplica_promocion FROM solicitud_items WHERE solicitud_id = $1 ORDER BY orden, id`,
     [id]
   );
   const items = itemsResult.rows as {
     producto: string;
     cantidad: number;
     precio_unitario: string | null;
+    aplica_promocion: boolean;
   }[];
 
   const fecha = new Date(s.creado_en).toLocaleDateString("es-MX", {
@@ -55,11 +59,16 @@ export async function GET(
     n.toLocaleString("es-MX", { style: "currency", currency: "MXN" });
 
   let subtotal = 0;
+  let baseDescuento = 0;
+  const promocionPorcentaje = s.promocion_porcentaje === null ? 0 : Number(s.promocion_porcentaje);
   const productosLineas = items.length > 0
     ? items.map((it) => {
         const precio = it.precio_unitario === null ? null : Number(it.precio_unitario);
         const lineaTotal = precio === null ? null : precio * it.cantidad;
-        if (lineaTotal !== null) subtotal += lineaTotal;
+        if (lineaTotal !== null) {
+          subtotal += lineaTotal;
+          if (s.promocion_nombre && it.aplica_promocion) baseDescuento += lineaTotal;
+        }
         return `<tr>
       <td>${esc(it.producto)}</td>
       <td style="text-align:center">${it.cantidad}</td>
@@ -78,8 +87,10 @@ export async function GET(
     </tr>`)
         .join("\n");
 
-  const iva = s.sin_iva ? 0 : subtotal * 0.16;
-  const total = subtotal + iva;
+  const descuento = s.promocion_nombre ? baseDescuento * (promocionPorcentaje / 100) : 0;
+  const subtotalConDescuento = subtotal - descuento;
+  const iva = s.sin_iva ? 0 : subtotalConDescuento * 0.16;
+  const total = subtotalConDescuento + iva;
   const hayPreciosReales = items.some((it) => it.precio_unitario !== null);
 
   const html = `<!DOCTYPE html>
@@ -313,6 +324,7 @@ export async function GET(
       <div class="totals">
         <table>
           <tr><td>Subtotal:</td><td style="text-align:right">${hayPreciosReales ? money(subtotal) : "$—"}</td></tr>
+          ${s.promocion_nombre ? `<tr style="color:#0033CC"><td>${esc(s.promocion_nombre)} (${promocionPorcentaje}%):</td><td style="text-align:right">-${money(descuento)}</td></tr>` : ""}
           <tr><td>IVA (16%):</td><td style="text-align:right">${s.sin_iva ? "Exento" : hayPreciosReales ? money(iva) : "$—"}</td></tr>
           <tr class="total-row"><td>TOTAL:</td><td style="text-align:right">${hayPreciosReales ? money(total) : "$—"}</td></tr>
         </table>

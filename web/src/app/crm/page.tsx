@@ -50,6 +50,12 @@ export default async function CrmHome() {
                 >
                   Asesores
                 </Link>
+                <Link
+                  href="/crm/promociones"
+                  className="rounded-full border border-white/20 px-4 py-1.5 font-heading text-sm text-brand-text/80 transition-colors hover:border-brand-primary hover:text-brand-primary"
+                >
+                  Promociones
+                </Link>
               </>
             )}
             {session.user?.rol === "agencia" && (

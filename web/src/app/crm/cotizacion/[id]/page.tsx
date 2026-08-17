@@ -11,12 +11,21 @@ interface SolicitudRow {
   nombre: string | null;
   telefono: string;
   sin_iva: boolean;
+  promocion_id: number | null;
 }
 
 interface ItemRow {
   producto: string;
   cantidad: number;
   precio_unitario: string | null;
+  aplica_promocion: boolean;
+}
+
+interface PromocionRow {
+  id: number;
+  nombre: string;
+  porcentaje: string;
+  categoria: string;
 }
 
 export default async function CotizacionPage({
@@ -30,14 +39,14 @@ export default async function CotizacionPage({
   const { id } = await params;
 
   const solicitudRes = await query<SolicitudRow>(
-    `SELECT id, nombre, telefono, sin_iva FROM solicitudes WHERE id = $1`,
+    `SELECT id, nombre, telefono, sin_iva, promocion_id FROM solicitudes WHERE id = $1`,
     [id]
   );
   const solicitud = solicitudRes.rows[0];
   if (!solicitud) notFound();
 
   const itemsRes = await query<ItemRow>(
-    `SELECT producto, cantidad, precio_unitario FROM solicitud_items WHERE solicitud_id = $1 ORDER BY orden, id`,
+    `SELECT producto, cantidad, precio_unitario, aplica_promocion FROM solicitud_items WHERE solicitud_id = $1 ORDER BY orden, id`,
     [id]
   );
 
@@ -45,6 +54,7 @@ export default async function CotizacionPage({
     producto: r.producto,
     cantidad: r.cantidad,
     precio: r.precio_unitario === null ? "" : String(r.precio_unitario),
+    aplicaPromocion: r.aplica_promocion,
   }));
 
   const catalogoRes = await query<{ nombre: string; sku: string | null; precio_venta: string | null }>(
@@ -54,6 +64,16 @@ export default async function CotizacionPage({
     nombre: r.nombre,
     sku: r.sku,
     precio: r.precio_venta === null ? null : Number(r.precio_venta),
+  }));
+
+  const promocionesRes = await query<PromocionRow>(
+    `SELECT id, nombre, porcentaje, categoria FROM promociones WHERE activo = true ORDER BY categoria, nombre`
+  );
+  const promociones = promocionesRes.rows.map((r) => ({
+    id: r.id,
+    nombre: r.nombre,
+    porcentaje: Number(r.porcentaje),
+    categoria: r.categoria,
   }));
 
   return (
@@ -74,6 +94,8 @@ export default async function CotizacionPage({
           itemsIniciales={itemsIniciales}
           catalogo={catalogo}
           sinIvaInicial={solicitud.sin_iva}
+          promociones={promociones}
+          promocionIdInicial={solicitud.promocion_id}
         />
       </div>
     </div>
