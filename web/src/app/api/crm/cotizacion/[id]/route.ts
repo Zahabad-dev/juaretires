@@ -274,7 +274,30 @@ export async function GET(
     @media print {
       body { background: #fff; }
       .page { box-shadow: none; }
+      .guardar-pdf-btn { display: none; }
     }
+
+    /* Botón flotante — solo en pantalla, nunca sale en el PDF/impresión */
+    .guardar-pdf-btn {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #0033CC;
+      color: #fff;
+      border: none;
+      border-radius: 999px;
+      padding: 14px 22px;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(0,51,204,0.35);
+    }
+    .guardar-pdf-btn:hover { opacity: 0.92; }
   </style>
 </head>
 <body>
@@ -352,6 +375,10 @@ export async function GET(
       Dudas o para confirmar tu pedido — llamada o WhatsApp: <strong>775 111 0944</strong> · <strong>775 162 7027</strong>
     </div>
   </div>
+
+  <button type="button" class="guardar-pdf-btn" onclick="window.print()">
+    💾 Guardar PDF para enviar al cliente
+  </button>
 
   <script>
     window.onload = () => window.print();
