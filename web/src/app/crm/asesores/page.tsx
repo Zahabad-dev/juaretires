@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { query } from "@/lib/db";
 import AsesorNombreForm from "./asesor-nombre-form";
+import SincronizarNombresButton from "./sincronizar-nombres-button";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,14 @@ export default async function AsesoresPage() {
           <p className="text-sm text-brand-text/50">
             Nombre real de cada asesor en la rotación del bot. Desactiva a los que ya no reciban leads.
           </p>
+        </div>
+
+        <div className="flex flex-col gap-2 rounded-2xl border border-white/10 bg-brand-surface2 p-4">
+          <p className="text-xs text-brand-text/50">
+            Si renombras a alguien, los leads que ya se le asignaron antes se quedan con el nombre
+            viejo (queda guardado como texto al momento de asignar). Usa esto para actualizarlos.
+          </p>
+          <SincronizarNombresButton />
         </div>
 
         <div className="flex flex-col gap-3">

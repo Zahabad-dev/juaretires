@@ -350,6 +350,28 @@ export async function actualizarAsesorNombreAction(
   return { success: "Asesor actualizado." };
 }
 
+// El nombre en solicitudes.asesor se guarda como "foto" al momento de asignar
+// (no una referencia viva a asesores.nombre), asi que si luego se renombra a
+// alguien, los leads ya asignados se quedan con el nombre viejo. Este boton
+// resincroniza todos los leads existentes con el nombre actual de cada turno.
+export async function sincronizarNombresAsesoresAction(
+  _prevState: { error?: string; success?: string } | undefined
+): Promise<{ error?: string; success?: string }> {
+  const session = await auth();
+  if (!esAdmin(session?.user?.rol)) {
+    return { error: "No tienes permiso para sincronizar nombres." };
+  }
+
+  const result = await query(
+    `UPDATE solicitudes s SET asesor = a.nombre
+     FROM asesores a
+     WHERE a.turno = s.turno_asesor AND s.asesor IS DISTINCT FROM a.nombre`
+  );
+
+  revalidatePath("/crm/solicitudes");
+  return { success: `${result.rowCount ?? 0} lead(s) actualizados con el nombre actual.` };
+}
+
 export async function actualizarProductoAction(
   _prevState: { error?: string; success?: string } | undefined,
   formData: FormData
