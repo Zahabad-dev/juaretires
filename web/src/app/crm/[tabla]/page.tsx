@@ -124,14 +124,16 @@ export default async function CrmTablePage({
           <table className="w-full min-w-max text-left text-sm">
             <thead className="bg-brand-surface2 text-brand-primary">
               <tr>
+                {tabla === "solicitudes" && (
+                  <th className="sticky left-0 z-10 whitespace-nowrap bg-brand-surface2 px-4 py-3 font-heading">
+                    Acciones
+                  </th>
+                )}
                 {columns.map((col) => (
                   <th key={col} className="whitespace-nowrap px-4 py-3 font-heading">
                     {col}
                   </th>
                 ))}
-                {tabla === "solicitudes" && (
-                  <th className="whitespace-nowrap px-4 py-3 font-heading">Acciones</th>
-                )}
               </tr>
             </thead>
             <tbody>
@@ -142,6 +144,14 @@ export default async function CrmTablePage({
                     key={i}
                     className="border-t border-white/5 text-brand-text/80 odd:bg-white/[0.02]"
                   >
+                    {tabla === "solicitudes" && (
+                      <td className="sticky left-0 z-10 whitespace-nowrap bg-brand-bg px-4 py-2">
+                        <div className="flex items-center gap-2">
+                          <CotizacionButton id={String(r.id)} />
+                          <EliminarButton id={String(r.id)} />
+                        </div>
+                      </td>
+                    )}
                     {columns.map((col) => {
                       if (tabla === "solicitudes" && col === "estado") {
                         return (
@@ -196,15 +206,6 @@ export default async function CrmTablePage({
                         </td>
                       );
                     })}
-
-                    {tabla === "solicitudes" && (
-                      <td className="whitespace-nowrap px-4 py-2">
-                        <div className="flex items-center gap-2">
-                          <CotizacionButton id={String(r.id)} />
-                          <EliminarButton id={String(r.id)} />
-                        </div>
-                      </td>
-                    )}
                   </tr>
                 );
               })}

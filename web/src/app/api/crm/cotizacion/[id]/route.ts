@@ -273,8 +273,9 @@ export async function GET(
 
     @media print {
       body { background: #fff; }
-      .page { box-shadow: none; }
+      .page { box-shadow: none; min-height: auto; }
       .guardar-pdf-btn { display: none; }
+      .signatures, .footer { page-break-inside: avoid; }
     }
 
     /* Botón flotante — solo en pantalla, nunca sale en el PDF/impresión */
