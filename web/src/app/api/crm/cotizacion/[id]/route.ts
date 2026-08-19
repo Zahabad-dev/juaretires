@@ -16,7 +16,7 @@ export async function GET(
   const { id } = await params;
   const result = await query(
     `SELECT id, telefono, nombre, canal, productos, notas, creado_en, sin_iva,
-            promocion_nombre, promocion_porcentaje
+            promocion_nombre, promocion_porcentaje, numero_cotizacion
      FROM solicitudes WHERE id = $1`,
     [id]
   );
@@ -36,6 +36,7 @@ export async function GET(
     sin_iva: boolean;
     promocion_nombre: string | null;
     promocion_porcentaje: string | null;
+    numero_cotizacion: number | null;
   };
 
   const itemsResult = await query(
@@ -312,7 +313,7 @@ export async function GET(
         </div>
       </div>
       <div class="doc-info">
-        <div class="num">COTIZACIÓN #${String(s.id).padStart(4, "0")}</div>
+        <div class="num">COTIZACIÓN #${s.numero_cotizacion !== null ? String(s.numero_cotizacion).padStart(4, "0") : "SIN FOLIO"}</div>
         <div>Fecha: ${fecha}</div>
         <div>Canal: ${esc(s.canal)}</div>
       </div>

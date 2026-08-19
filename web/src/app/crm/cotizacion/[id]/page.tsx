@@ -14,6 +14,7 @@ interface SolicitudRow {
   promocion_id: number | null;
   cotizacion_enviada: boolean;
   cotizacion_generada_en: Date | null;
+  numero_cotizacion: number | null;
 }
 
 interface ItemRow {
@@ -41,7 +42,7 @@ export default async function CotizacionPage({
   const { id } = await params;
 
   const solicitudRes = await query<SolicitudRow>(
-    `SELECT id, nombre, telefono, sin_iva, promocion_id, cotizacion_enviada, cotizacion_generada_en
+    `SELECT id, nombre, telefono, sin_iva, promocion_id, cotizacion_enviada, cotizacion_generada_en, numero_cotizacion
      FROM solicitudes WHERE id = $1`,
     [id]
   );
@@ -88,7 +89,12 @@ export default async function CotizacionPage({
           </Link>
           <div className="mt-1 flex flex-wrap items-center gap-3">
             <h1 className="font-heading text-2xl text-brand-text">
-              Cotización — {solicitud.nombre || "Sin nombre"}
+              Cotización {solicitud.numero_cotizacion !== null && (
+                <span className="text-brand-primary">
+                  #{String(solicitud.numero_cotizacion).padStart(4, "0")}
+                </span>
+              )}{" "}
+              — {solicitud.nombre || "Sin nombre"}
             </h1>
             {solicitud.cotizacion_generada_en && (
               <span

@@ -205,6 +205,32 @@ export async function guardarCotizacionAction(
     }
   }
 
+  // Folio de cotización: independiente del id de la solicitud (que es una
+  // fila por CLIENTE, no por cotización). Se asigna uno NUEVO solo si
+  // todavía no tiene folio, o si la cotización que ya estaba guardada se
+  // había marcado como enviada -- eso significa que esto es una cotización
+  // DISTINTA para el mismo cliente (ej. pide otra al día siguiente) y no
+  // debe compartir folio con la anterior. Si sigue siendo el mismo borrador
+  // sin enviar, se conserva el folio.
+  let numeroCotizacion: number | null = null;
+  let folioNuevo = false;
+  if (hayPrecioReal) {
+    const actual = await query<{ numero_cotizacion: number | null; cotizacion_enviada: boolean }>(
+      `SELECT numero_cotizacion, cotizacion_enviada FROM solicitudes WHERE id = $1`,
+      [solicitudId]
+    );
+    const previo = actual.rows[0];
+    folioNuevo = !previo || previo.numero_cotizacion === null || previo.cotizacion_enviada === true;
+    if (folioNuevo) {
+      const contador = await query<{ ultimo_numero: number }>(
+        `UPDATE cotizacion_contador SET ultimo_numero = ultimo_numero + 1 WHERE id = 1 RETURNING ultimo_numero`
+      );
+      numeroCotizacion = contador.rows[0].ultimo_numero;
+    } else {
+      numeroCotizacion = previo!.numero_cotizacion;
+    }
+  }
+
   await query(
     `UPDATE solicitudes SET
        sin_iva = $1,
@@ -213,9 +239,15 @@ export async function guardarCotizacionAction(
        promocion_porcentaje = $4,
        cotizacion_enviada = $5,
        cotizacion_enviada_en = CASE WHEN $5 AND cotizacion_enviada_en IS NULL THEN NOW() ELSE cotizacion_enviada_en END,
-       cotizacion_generada_en = COALESCE(cotizacion_generada_en, CASE WHEN $6 THEN NOW() ELSE NULL END)
+       numero_cotizacion = CASE WHEN $6 THEN $8 ELSE numero_cotizacion END,
+       cotizacion_generada_en = CASE
+         WHEN NOT $6 THEN cotizacion_generada_en
+         WHEN $9 THEN NOW()
+         ELSE COALESCE(cotizacion_generada_en, NOW())
+       END,
+       cotizacion_recordatorio_en = CASE WHEN $6 AND $9 THEN NULL ELSE cotizacion_recordatorio_en END
      WHERE id = $7`,
-    [sinIva, promocionId, promocionNombre, promocionPorcentaje, cotizacionEnviada, hayPrecioReal, solicitudId]
+    [sinIva, promocionId, promocionNombre, promocionPorcentaje, cotizacionEnviada, hayPrecioReal, solicitudId, numeroCotizacion, folioNuevo]
   );
   await query(`DELETE FROM solicitud_items WHERE solicitud_id = $1`, [solicitudId]);
 
