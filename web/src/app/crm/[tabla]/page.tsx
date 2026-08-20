@@ -89,7 +89,9 @@ export default async function CrmTablePage({
         [miTurno]
       )
     : await query(`SELECT * FROM ${info.table} ORDER BY 1 DESC LIMIT ${ROW_LIMIT}`);
-  const columns = result.fields.map((f) => f.name);
+  const columns = result.fields
+    .map((f) => f.name)
+    .filter((c) => !(tabla === "solicitudes" && c === "id"));
 
   // Entrar a solicitudes marca como vistos solo los leads que ese usuario puede ver
   if (tabla === "solicitudes") {
@@ -131,7 +133,7 @@ export default async function CrmTablePage({
                 )}
                 {columns.map((col) => (
                   <th key={col} className="whitespace-nowrap px-4 py-3 font-heading">
-                    {col}
+                    {tabla === "solicitudes" && col === "numero_cliente" ? "Cliente #" : col}
                   </th>
                 ))}
               </tr>
@@ -190,6 +192,15 @@ export default async function CrmTablePage({
                               </svg>
                               {String(r.telefono)}
                             </a>
+                          </td>
+                        );
+                      }
+                      if (tabla === "solicitudes" && col === "numero_cliente") {
+                        return (
+                          <td key={col} className="whitespace-nowrap px-4 py-2 font-heading text-brand-primary">
+                            {r.numero_cliente !== null && r.numero_cliente !== undefined
+                              ? `#${r.numero_cliente}`
+                              : "—"}
                           </td>
                         );
                       }
